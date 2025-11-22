@@ -1,0 +1,38 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id               String      @id @default(cuid())
+  slug             String      @unique
+  displayName      String
+  shortDescription String
+  websiteUrl       String?
+  config           Json
+  ownerEmail       String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  demoClips        DemoClip[]
+}
+
+model DemoClip {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id])
+  url        String
+  title      String
+  persona    String?
+  intentTags String[]
+  createdAt  DateTime @default(now())
+
+  @@index([companyId])
+}
+

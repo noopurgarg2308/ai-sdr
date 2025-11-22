@@ -1,12 +1,26 @@
 from typing import List, Dict, Any
 
-from agent import generate_sdr_reply
+from agent import generate_sdr_reply, analyze_lead
+
+
+def print_lead_summary(conversation: List[Dict[str, Any]]) -> None:
+    if not conversation:
+        print("\n(no conversation yet to analyze)\n")
+        return
+
+    summary = analyze_lead(conversation)
+
+    print("\n📊 Lead Summary")
+    print("----------------")
+    for key, value in summary.items():
+        print(f"{key}: {value}")
+    print("")
 
 
 def run_cli_chat() -> None:
-    print("🤖 AI SDR ready. Type 'exit' or 'quit' to stop.\n")
+    print("🤖 AI SDR ready. Type 'exit' or 'quit' to stop.")
+    print("Type 'summary' to see a structured lead analysis.\n")
 
-    # This will store the full multi-turn conversation
     conversation: List[Dict[str, Any]] = []
 
     while True:
@@ -16,20 +30,21 @@ def run_cli_chat() -> None:
             print("\nAI SDR: Talk soon! 👋")
             break
 
-        if user_input.lower() in {"exit", "quit"}:
-            print("AI SDR: Talk soon! 👋")
-            break
-
         if not user_input:
             continue
 
-        # Add user message to history
+        lowered = user_input.lower()
+        if lowered in {"exit", "quit"}:
+            print("AI SDR: Talk soon! 👋")
+            break
+
+        if lowered == "summary":
+            print_lead_summary(conversation)
+            continue
+
+        # Normal chat flow
         conversation.append({"role": "user", "content": user_input})
-
-        # Get SDR reply using the shared 'brain'
         reply = generate_sdr_reply(conversation)
-
-        # Add assistant reply to history
         conversation.append({"role": "assistant", "content": reply})
 
         print(f"\nAI SDR: {reply}\n")
