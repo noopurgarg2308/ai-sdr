@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model Company {
@@ -30,7 +30,7 @@ model DemoClip {
   url        String
   title      String
   persona    String?
-  intentTags String[]
+  intentTags String?
   createdAt  DateTime @default(now())
 
   @@index([companyId])
