@@ -1,4 +1,4 @@
-import WidgetChat from "@/components/WidgetChat";
+import WidgetChatRealtime from "@/components/WidgetChatRealtime";
 
 export default async function WidgetPage({
   params,
@@ -7,6 +7,6 @@ export default async function WidgetPage({
 }) {
   const { companyId } = await params;
 
-  return <WidgetChat companyId={companyId} />;
+  return <WidgetChatRealtime companyId={companyId} />;
 }
 
