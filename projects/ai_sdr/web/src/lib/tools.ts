@@ -10,18 +10,13 @@ export const toolDefinitions = [
     function: {
       name: "search_knowledge",
       description:
-        "Search the company's knowledge base for information about products, features, pricing, integrations, etc. Use this when you need accurate information to answer a question.",
+        "Search company-specific documentation, FAQs, and product information using semantic search. Use this when you need accurate information to answer a question about the company's products or services.",
       parameters: {
         type: "object",
         properties: {
           query: {
             type: "string",
-            description: "The search query or question to look up in the knowledge base",
-          },
-          topK: {
-            type: "number",
-            description: "Number of results to return (default: 5)",
-            default: 5,
+            description: "Natural language question to search company knowledge for.",
           },
         },
         required: ["query"],
@@ -128,8 +123,19 @@ export async function dispatchToolCall(
   console.log(`[Tools] Dispatching tool call: ${name}`, args);
 
   switch (name) {
-    case "search_knowledge":
-      return await searchKnowledge(companyId, args.query, args.topK ?? 5);
+    case "search_knowledge": {
+      const results = await searchKnowledge({
+        companyId,
+        query: args.query,
+        limit: 5,
+      });
+      return {
+        results: results.map((r) => ({
+          content: r.content,
+          score: r.score,
+        })),
+      };
+    }
 
     case "get_demo_clip":
       return await getDemoClip(companyId, args.persona as Persona, args.intent);

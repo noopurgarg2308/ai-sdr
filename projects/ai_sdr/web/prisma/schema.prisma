@@ -21,6 +21,8 @@ model Company {
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
   demoClips        DemoClip[]
+  documents        Document[]
+  chunks           Chunk[]
 }
 
 model DemoClip {
@@ -34,5 +36,33 @@ model DemoClip {
   createdAt  DateTime @default(now())
 
   @@index([companyId])
+}
+
+model Document {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+  title     String
+  source    String?
+  content   String
+  createdAt DateTime @default(now())
+  chunks    Chunk[]
+
+  @@index([companyId])
+}
+
+model Chunk {
+  id         String   @id @default(cuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id])
+  index      Int
+  content    String
+  embedding  String
+  createdAt  DateTime @default(now())
+
+  @@index([companyId])
+  @@index([documentId])
 }
 
