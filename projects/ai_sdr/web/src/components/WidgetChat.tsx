@@ -21,7 +21,11 @@ export default function WidgetChat({ companyId }: WidgetChatProps) {
   const [sessionId, setSessionId] = useState<string>();
   const [demoClipUrl, setDemoClipUrl] = useState<string>();
   const [meetingLink, setMeetingLink] = useState<string>();
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -30,6 +34,43 @@ export default function WidgetChat({ companyId }: WidgetChatProps) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Initialize speech recognition
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognition =
+        (window as any).SpeechRecognition ||
+        (window as any).webkitSpeechRecognition;
+
+      if (SpeechRecognition) {
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = false;
+        recognitionRef.current.interimResults = false;
+        recognitionRef.current.lang = "en-US";
+
+        recognitionRef.current.onresult = (event: any) => {
+          const transcript = event.results[0][0].transcript;
+          setInput(transcript);
+          setIsListening(false);
+        };
+
+        recognitionRef.current.onerror = (event: any) => {
+          console.error("Speech recognition error:", event.error);
+          setIsListening(false);
+        };
+
+        recognitionRef.current.onend = () => {
+          setIsListening(false);
+        };
+      }
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -66,6 +107,11 @@ export default function WidgetChat({ companyId }: WidgetChatProps) {
       if (data.meetingLink) setMeetingLink(data.meetingLink);
 
       setMessages((prev) => [...prev, data.reply]);
+
+      // Speak the response if voice is enabled
+      if (voiceEnabled && data.reply.content) {
+        speakText(data.reply.content);
+      }
     } catch (error) {
       console.error("Error sending message:", error);
       const errorMessage: ChatMessage = {
@@ -77,6 +123,49 @@ export default function WidgetChat({ companyId }: WidgetChatProps) {
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const startListening = () => {
+    if (recognitionRef.current && !isListening) {
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch (error) {
+        console.error("Error starting speech recognition:", error);
+      }
+    }
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current && isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    }
+  };
+
+  const speakText = (text: string) => {
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+
+      utterance.onstart = () => setIsSpeaking(true);
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = () => setIsSpeaking(false);
+
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  const stopSpeaking = () => {
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
     }
   };
 
@@ -151,16 +240,72 @@ export default function WidgetChat({ companyId }: WidgetChatProps) {
 
       {/* Input */}
       <div className="border-t p-4 bg-white">
+        {/* Voice controls */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center space-x-2">
+            {isListening && (
+              <span className="flex items-center text-sm text-red-600 animate-pulse">
+                <span className="w-2 h-2 bg-red-600 rounded-full mr-2"></span>
+                Listening...
+              </span>
+            )}
+            {isSpeaking && (
+              <span className="flex items-center text-sm text-blue-600">
+                <span className="w-2 h-2 bg-blue-600 rounded-full mr-2 animate-pulse"></span>
+                Speaking...
+              </span>
+            )}
+          </div>
+          <button
+            onClick={() => setVoiceEnabled(!voiceEnabled)}
+            className={`text-xs px-3 py-1 rounded-full transition-colors ${
+              voiceEnabled
+                ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+            title={voiceEnabled ? "Voice responses enabled" : "Voice responses disabled"}
+          >
+            {voiceEnabled ? "🔊 Voice ON" : "🔇 Voice OFF"}
+          </button>
+        </div>
+
         <div className="flex space-x-2">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Type your message..."
-            disabled={isLoading}
+            placeholder={isListening ? "Listening..." : "Type or speak your message..."}
+            disabled={isLoading || isListening}
             className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
           />
+          
+          {/* Microphone button */}
+          <button
+            onClick={isListening ? stopListening : startListening}
+            disabled={isLoading}
+            className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
+              isListening
+                ? "bg-red-600 text-white hover:bg-red-700 animate-pulse"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            } disabled:bg-gray-300 disabled:cursor-not-allowed`}
+            title={isListening ? "Stop listening" : "Start voice input"}
+          >
+            {isListening ? "🎤 Stop" : "🎤"}
+          </button>
+
+          {/* Stop speaking button (only show when speaking) */}
+          {isSpeaking && (
+            <button
+              onClick={stopSpeaking}
+              className="px-4 py-2 rounded-lg font-semibold bg-orange-600 text-white hover:bg-orange-700 transition-colors"
+              title="Stop speaking"
+            >
+              🔇 Stop
+            </button>
+          )}
+
+          {/* Send button */}
           <button
             onClick={sendMessage}
             disabled={isLoading || !input.trim()}
