@@ -83,7 +83,27 @@ class SimpleQueue {
       console.log(`[Queue] Job ${job.id} completed`);
     } catch (error) {
       job.status = "failed";
-      job.error = error instanceof Error ? error.message : "Unknown error";
+      
+      // Format user-friendly error messages
+      let errorMessage = "Unknown error";
+      if (error instanceof Error) {
+        const msg = error.message;
+        
+        // Network/connection errors
+        if (msg.includes("ECONNRESET") || msg.includes("Connection")) {
+          errorMessage = "Network connection error. Please check your internet connection and try again.";
+        } else if (msg.includes("timeout") || msg.includes("ETIMEDOUT")) {
+          errorMessage = "Request timed out. The video may be too large. Try a shorter video or compress it.";
+        } else if (msg.includes("too large") || msg.includes("25 MB")) {
+          errorMessage = "Video file is too large (max 25 MB). Please compress the video and try again.";
+        } else if (msg.includes("ffmpeg") || msg.includes("not found")) {
+          errorMessage = "Video processing tool not found. Please install ffmpeg: brew install ffmpeg";
+        } else {
+          errorMessage = msg;
+        }
+      }
+      
+      job.error = errorMessage;
       console.error(`[Queue] Job ${job.id} failed:`, error);
     }
 
