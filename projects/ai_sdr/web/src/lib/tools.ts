@@ -1,5 +1,6 @@
 import type { CompanyId, Persona } from "@/types/chat";
 import { searchKnowledge } from "./rag";
+import { intelligentSearch } from "./smartSearch";
 import { getDemoClip } from "./demoMedia";
 import { createMeetingLink } from "./scheduling";
 import { logLeadToCRM, type LeadPayload } from "./crm";
@@ -157,16 +158,21 @@ export async function dispatchToolCall(
 
   switch (name) {
     case "search_knowledge": {
-      const results = await searchKnowledge({
-        companyId,
-        query: args.query,
+      // Use intelligent search that includes linked visuals
+      const smartResults = await intelligentSearch(companyId, args.query, {
+        includeVisuals: true,
         limit: 5,
       });
+      
+      console.log(`[Tools] Smart search found ${smartResults.textResults.length} text results, ${smartResults.linkedVisuals.length} linked visuals`);
+      
       return {
-        results: results.map((r) => ({
+        results: smartResults.textResults.map((r) => ({
           content: r.content,
           score: r.score,
         })),
+        linkedVisuals: smartResults.linkedVisuals,
+        visualResults: smartResults.visualResults,
       };
     }
 

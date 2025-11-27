@@ -64,6 +64,16 @@ export async function POST(
           if (toolCall.function.name === "show_visual" && result && result.visuals) {
             visualAssets = [...visualAssets, ...result.visuals];
           }
+          if (toolCall.function.name === "search_knowledge" && result) {
+            // Add linked visuals from RAG search results
+            if (result.linkedVisuals && result.linkedVisuals.length > 0) {
+              console.log(`[Chat API] Adding ${result.linkedVisuals.length} linked visuals from RAG`);
+              visualAssets = [...visualAssets, ...result.linkedVisuals];
+            }
+            if (result.visualResults && result.visualResults.length > 0) {
+              visualAssets = [...visualAssets, ...result.visualResults];
+            }
+          }
 
           return {
             role: "tool" as const,
