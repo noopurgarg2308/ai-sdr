@@ -1,0 +1,102 @@
+import { openai } from "./openai";
+
+/**
+ * Extract text and detailed description from an image using GPT-4 Vision
+ */
+export async function extractTextFromImage(imageUrl: string): Promise<{
+  text: string;
+  confidence: number;
+}> {
+  console.log(`[OCR] Extracting text from image: ${imageUrl}`);
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4-vision-preview",
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: `Please analyze this image in detail. Extract and describe:
+
+1. Any visible text (UI labels, headings, numbers, data)
+2. Visual elements (charts, graphs, diagrams, layouts)
+3. UI components (buttons, forms, navigation)
+4. Data and metrics shown
+5. Overall purpose and context
+
+Be comprehensive and detailed. Format as continuous text for search indexing.`,
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: imageUrl,
+                detail: "high",
+              },
+            },
+          ],
+        },
+      ],
+      max_tokens: 1000,
+      temperature: 0.3, // Lower temperature for more accurate extraction
+    });
+
+    const extractedText = response.choices[0].message.content || "";
+    
+    // Estimate confidence based on response length and detail
+    const confidence = extractedText.length > 100 ? 0.9 : 0.7;
+
+    console.log(`[OCR] Extracted ${extractedText.length} characters`);
+
+    return {
+      text: extractedText,
+      confidence,
+    };
+  } catch (error) {
+    console.error("[OCR] Error extracting text from image:", error);
+    throw error;
+  }
+}
+
+/**
+ * Analyze an image for specific information
+ */
+export async function analyzeImage(
+  imageUrl: string,
+  question: string
+): Promise<string> {
+  console.log(`[OCR] Analyzing image with question: ${question}`);
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4-vision-preview",
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: question,
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: imageUrl,
+                detail: "high",
+              },
+            },
+          ],
+        },
+      ],
+      max_tokens: 500,
+      temperature: 0.3,
+    });
+
+    return response.choices[0].message.content || "";
+  } catch (error) {
+    console.error("[OCR] Error analyzing image:", error);
+    throw error;
+  }
+}
+

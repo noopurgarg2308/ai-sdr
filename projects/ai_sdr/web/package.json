@@ -14,7 +14,11 @@
     "seed:visuals:real": "tsx scripts/seedHypersonixVisualsReal.ts"
   },
   "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@prisma/client": "^6.0.0",
+    "bullmq": "^5.14.0",
+    "fluent-ffmpeg": "^2.1.3",
+    "ioredis": "^5.4.1",
     "next": "16.0.3",
     "openai": "^4.68.0",
     "react": "19.2.0",
@@ -23,6 +27,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/fluent-ffmpeg": "^2.1.25",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
