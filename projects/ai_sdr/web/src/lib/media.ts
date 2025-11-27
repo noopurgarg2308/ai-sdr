@@ -52,6 +52,32 @@ export async function searchMediaAssets(options: {
 
   console.log(`[Media] Found ${assets.length} assets from database`);
 
+  // If no results and both type and category were specified, retry with just category
+  if (assets.length === 0 && type && category) {
+    console.log(`[Media] No assets found with type=${type} and category=${category}, retrying with just category`);
+    const retryAssets = await prisma.mediaAsset.findMany({
+      where: { companyId, category },
+      take: limit * 3,
+      orderBy: { createdAt: "desc" },
+    });
+    console.log(`[Media] Retry found ${retryAssets.length} assets`);
+    
+    if (retryAssets.length > 0) {
+      // Use retry results instead
+      return retryAssets.map((asset) => ({
+        id: asset.id,
+        type: asset.type as MediaType,
+        url: asset.url,
+        title: asset.title,
+        description: asset.description || undefined,
+        category: asset.category as MediaCategory | undefined,
+        tags: asset.tags ? JSON.parse(asset.tags) : undefined,
+        thumbnail: asset.thumbnail || undefined,
+        metadata: asset.metadata ? JSON.parse(asset.metadata) : undefined,
+      })).slice(0, limit);
+    }
+  }
+
   if (assets.length === 0) {
     console.log(`[Media] No assets found for companyId=${companyId}, type=${type}, category=${category}`);
     return [];
