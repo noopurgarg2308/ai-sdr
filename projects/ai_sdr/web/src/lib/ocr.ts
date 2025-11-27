@@ -70,7 +70,7 @@ export async function analyzeImage(
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4-vision-preview",
+      model: "gpt-4o", // Updated from deprecated gpt-4-vision-preview
       messages: [
         {
           role: "user",
