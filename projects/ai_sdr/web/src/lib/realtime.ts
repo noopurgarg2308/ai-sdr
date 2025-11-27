@@ -91,9 +91,15 @@ export class RealtimeClient {
       },
     };
 
-    // Add tools if provided
+    // Add tools if provided - Transform to Realtime API format
     if (this.options.tools && this.options.tools.length > 0) {
-      session.tools = this.options.tools;
+      // Realtime API expects tools in a different format than Chat Completions API
+      session.tools = this.options.tools.map((tool: any) => ({
+        type: "function",
+        name: tool.function.name,
+        description: tool.function.description,
+        parameters: tool.function.parameters,
+      }));
       session.tool_choice = "auto";
     }
 
