@@ -142,24 +142,24 @@ Be conversational and helpful. Ask about their role and needs. Use your tools to
             const result = await response.json();
             console.log("[Realtime] Tool result:", name, result);
             
-            // Handle special results
-            if (name === "get_demo_clip" && result.url) {
-              console.log("[Realtime] Setting demo clip:", result.url);
-              setDemoClipUrl(result.url);
+          // Handle special results
+          if (name === "get_demo_clip" && result && result.url) {
+            console.log("[Realtime] Setting demo clip:", result.url);
+            setDemoClipUrl(result.url);
+          }
+          if (name === "create_meeting_link" && result && result.url) {
+            console.log("[Realtime] Setting meeting link:", result.url);
+            setMeetingLink(result.url);
+          }
+          if (name === "show_visual" && result) {
+            console.log("[Realtime] Show visual result:", result);
+            if (result.visuals && result.visuals.length > 0) {
+              console.log("[Realtime] Adding", result.visuals.length, "visual assets");
+              setVisualAssets((prev) => [...prev, ...result.visuals]);
+            } else {
+              console.warn("[Realtime] No visuals in result:", result);
             }
-            if (name === "create_meeting_link" && result.url) {
-              console.log("[Realtime] Setting meeting link:", result.url);
-              setMeetingLink(result.url);
-            }
-            if (name === "show_visual") {
-              console.log("[Realtime] Show visual result:", result);
-              if (result.visuals && result.visuals.length > 0) {
-                console.log("[Realtime] Adding", result.visuals.length, "visual assets");
-                setVisualAssets((prev) => [...prev, ...result.visuals]);
-              } else {
-                console.warn("[Realtime] No visuals in result:", result);
-              }
-            }
+          }
             
             return result;
           } catch (error) {
