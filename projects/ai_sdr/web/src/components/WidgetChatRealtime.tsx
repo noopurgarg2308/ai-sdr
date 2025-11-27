@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import type { ChatMessage } from "@/types/chat";
 import { RealtimeClient } from "@/lib/realtime";
-import { toolDefinitions } from "@/lib/tools";
+import { toolDefinitions } from "@/lib/toolDefinitions";
 
 interface WidgetChatProps {
   companyId: string;

@@ -1,15 +1,9 @@
-import type { CompanyId, Persona } from "@/types/chat";
-import { searchKnowledge } from "./rag";
-import { getDemoClip } from "./demoMedia";
-import { createMeetingLink } from "./scheduling";
-import { logLeadToCRM, type LeadPayload } from "./crm";
-import { searchMediaAssets, type MediaType, type MediaCategory } from "./media";
+/**
+ * OpenAI function tool definitions
+ * Separate file to avoid importing server-side code on client
+ */
 
-// Export tool definitions from separate file to avoid client-side imports
-export { toolDefinitions } from "./toolDefinitions";
-
-// Keep the old definitions here for reference but commented out
-const _toolDefinitionsOld = [
+export const toolDefinitions = [
   {
     type: "function" as const,
     function: {
@@ -146,65 +140,5 @@ const _toolDefinitionsOld = [
       },
     },
   },
-]; // End of old definitions (kept for reference)
-
-export async function dispatchToolCall(
-  companyId: CompanyId,
-  name: string,
-  args: any
-): Promise<any> {
-  console.log(`[Tools] Dispatching tool call: ${name}`, args);
-
-  switch (name) {
-    case "search_knowledge": {
-      const results = await searchKnowledge({
-        companyId,
-        query: args.query,
-        limit: 5,
-      });
-      return {
-        results: results.map((r) => ({
-          content: r.content,
-          score: r.score,
-        })),
-      };
-    }
-
-    case "get_demo_clip":
-      return await getDemoClip(companyId, args.persona as Persona, args.intent);
-
-    case "create_meeting_link":
-      return await createMeetingLink(args.timezone, args.persona);
-
-    case "log_lead": {
-      const payload: LeadPayload = {
-        ...args,
-        companyId,
-      };
-      return await logLeadToCRM(payload);
-    }
-
-    case "show_visual": {
-      const results = await searchMediaAssets({
-        companyId,
-        query: args.query,
-        type: args.type as MediaType | undefined,
-        category: args.category as MediaCategory | undefined,
-        limit: 3,
-      });
-      return {
-        visuals: results.map((v) => ({
-          type: v.type,
-          url: v.url,
-          title: v.title,
-          description: v.description,
-          thumbnail: v.thumbnail,
-        })),
-      };
-    }
-
-    default:
-      throw new Error(`Unknown tool: ${name}`);
-  }
-}
+];
 
