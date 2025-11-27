@@ -99,15 +99,17 @@ export default function WidgetChatText({ companyId }: WidgetChatProps) {
   };
 
   return (
-    <div className="flex flex-col h-screen max-w-4xl mx-auto bg-white">
+    <div className="flex flex-col h-full max-w-4xl mx-auto bg-white">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 shadow-lg">
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 shadow-lg flex-shrink-0">
         <h1 className="text-xl font-semibold">AI Sales Assistant (Text + Visuals)</h1>
         <p className="text-sm text-blue-100">Type your questions and I'll show you visuals</p>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      {/* Scrollable Content Area */}
+      <div className="flex-1 overflow-y-auto">
+        {/* Messages */}
+        <div className="p-4 space-y-4">
         {messages.map((message) => (
           <div
             key={message.id}
@@ -135,22 +137,22 @@ export default function WidgetChatText({ companyId }: WidgetChatProps) {
             </div>
           </div>
         )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Demo Clip */}
-      {demoClipUrl && (
-        <div className="border-t p-4 bg-gray-50">
-          <h3 className="font-semibold mb-2">Product Demo</h3>
-          <video src={demoClipUrl} controls className="w-full rounded-lg shadow-md" />
+          <div ref={messagesEndRef} />
         </div>
-      )}
 
-      {/* Visual Assets */}
-      {visualAssets.length > 0 && (
-        <div className="border-t p-4 bg-gray-50">
-          <h3 className="font-semibold mb-3 text-gray-900">Visual Content</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Demo Clip */}
+        {demoClipUrl && (
+          <div className="border-t p-4 bg-gray-50">
+            <h3 className="font-semibold mb-2">Product Demo</h3>
+            <video src={demoClipUrl} controls className="w-full max-w-3xl mx-auto rounded-lg shadow-md" />
+          </div>
+        )}
+
+        {/* Visual Assets */}
+        {visualAssets.length > 0 && (
+          <div className="border-t p-4 bg-gray-50">
+            <h3 className="font-semibold mb-3 text-gray-900">Visual Content</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[600px] overflow-y-auto">
             {visualAssets.map((asset, index) => (
               <div key={index} className="bg-white rounded-lg shadow-sm overflow-hidden">
                 {asset.type === "image" && (
@@ -202,27 +204,28 @@ export default function WidgetChatText({ companyId }: WidgetChatProps) {
                   </div>
                 )}
               </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Meeting CTA */}
-      {meetingLink && (
-        <div className="border-t p-4 bg-blue-50">
-          <a
-            href={meetingLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block w-full bg-blue-600 text-white text-center py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-          >
-            📅 Book a Meeting with Our Team
-          </a>
-        </div>
-      )}
+        {/* Meeting CTA */}
+        {meetingLink && (
+          <div className="border-t p-4 bg-blue-50">
+            <a
+              href={meetingLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full max-w-3xl mx-auto bg-blue-600 text-white text-center py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+            >
+              📅 Book a Meeting with Our Team
+            </a>
+          </div>
+        )}
+      </div>
 
-      {/* Input */}
-      <div className="border-t p-4 bg-white">
+      {/* Fixed Input at Bottom */}
+      <div className="border-t p-4 bg-white flex-shrink-0">
         <div className="flex space-x-2">
           <input
             type="text"
