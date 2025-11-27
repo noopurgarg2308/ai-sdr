@@ -1,13 +1,26 @@
-import ffmpeg from "fluent-ffmpeg";
-import ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
 import { openai } from "./openai";
 import { prisma } from "./prisma";
 import { ingestCompanyDoc } from "./rag";
 import * as fs from "fs";
 import * as path from "path";
 
-// Set ffmpeg path
-ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+// Lazy load ffmpeg to avoid build errors
+let ffmpeg: any = null;
+let ffmpegInstaller: any = null;
+
+async function initFFmpeg() {
+  if (!ffmpeg) {
+    ffmpeg = (await import("fluent-ffmpeg")).default;
+    try {
+      ffmpegInstaller = await import("@ffmpeg-installer/ffmpeg");
+      ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+    } catch (error) {
+      console.warn("[VideoProcessor] ffmpeg-installer not available, using system ffmpeg");
+      // Will use system ffmpeg if installed
+    }
+  }
+  return ffmpeg;
+}
 
 export interface TranscriptSegment {
   start: number;
@@ -37,10 +50,12 @@ export async function extractKeyframes(
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
+  const ffmpegInstance = await initFFmpeg();
+
   return new Promise((resolve, reject) => {
     const framePaths: string[] = [];
 
-    ffmpeg(videoPath)
+    ffmpegInstance(videoPath)
       .on("end", () => {
         console.log(`[VideoProcessor] Extracted ${framePaths.length} frames`);
         resolve(framePaths);

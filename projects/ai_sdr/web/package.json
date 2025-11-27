@@ -14,7 +14,6 @@
     "seed:visuals:real": "tsx scripts/seedHypersonixVisualsReal.ts"
   },
   "dependencies": {
-    "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@prisma/client": "^6.0.0",
     "bullmq": "^5.14.0",
     "fluent-ffmpeg": "^2.1.3",
