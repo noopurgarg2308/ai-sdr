@@ -72,6 +72,7 @@ export default function WidgetChatText({ companyId }: WidgetChatProps) {
       if (data.demoClipUrl) setDemoClipUrl(data.demoClipUrl);
       if (data.meetingLink) setMeetingLink(data.meetingLink);
       if (data.visualAssets && data.visualAssets.length > 0) {
+        console.log("[Text Mode] Adding visual assets:", data.visualAssets.length);
         setVisualAssets((prev) => [...prev, ...data.visualAssets]);
       }
 

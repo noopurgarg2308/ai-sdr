@@ -24,6 +24,13 @@ export default function WidgetChat({ companyId }: WidgetChatProps) {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [visualAssets, setVisualAssets] = useState<Array<{
+    type: string;
+    url: string;
+    title: string;
+    description?: string;
+    thumbnail?: string;
+  }>>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
 
@@ -105,6 +112,9 @@ export default function WidgetChat({ companyId }: WidgetChatProps) {
       if (data.sessionId) setSessionId(data.sessionId);
       if (data.demoClipUrl) setDemoClipUrl(data.demoClipUrl);
       if (data.meetingLink) setMeetingLink(data.meetingLink);
+      if (data.visualAssets && data.visualAssets.length > 0) {
+        setVisualAssets((prev) => [...prev, ...data.visualAssets]);
+      }
 
       setMessages((prev) => [...prev, data.reply]);
 
@@ -221,6 +231,67 @@ export default function WidgetChat({ companyId }: WidgetChatProps) {
         <div className="border-t p-4 bg-gray-50">
           <h3 className="font-semibold mb-2">Product Demo</h3>
           <video src={demoClipUrl} controls className="w-full rounded-lg shadow-md" />
+        </div>
+      )}
+
+      {/* Visual Assets */}
+      {visualAssets.length > 0 && (
+        <div className="border-t p-4 bg-gray-50">
+          <h3 className="font-semibold mb-3 text-gray-900">Visual Content</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {visualAssets.map((asset, index) => (
+              <div key={index} className="bg-white rounded-lg shadow-sm overflow-hidden">
+                {asset.type === "image" && (
+                  <div>
+                    <img 
+                      src={asset.url} 
+                      alt={asset.title}
+                      className="w-full h-auto"
+                    />
+                    <div className="p-3">
+                      <p className="font-medium text-sm text-gray-900">{asset.title}</p>
+                      {asset.description && (
+                        <p className="text-xs text-gray-600 mt-1">{asset.description}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {asset.type === "video" && (
+                  <div>
+                    <video 
+                      src={asset.url} 
+                      controls 
+                      poster={asset.thumbnail}
+                      className="w-full"
+                    />
+                    <div className="p-3">
+                      <p className="font-medium text-sm text-gray-900">{asset.title}</p>
+                      {asset.description && (
+                        <p className="text-xs text-gray-600 mt-1">{asset.description}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {asset.type === "chart" && (
+                  <div>
+                    <img 
+                      src={asset.url} 
+                      alt={asset.title}
+                      className="w-full h-auto"
+                    />
+                    <div className="p-3 bg-blue-50">
+                      <p className="font-medium text-sm text-gray-900">{asset.title}</p>
+                      {asset.description && (
+                        <p className="text-xs text-gray-600 mt-1">{asset.description}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
