@@ -75,7 +75,39 @@ export async function extractKeyframes(
 }
 
 /**
- * Transcribe video audio using OpenAI Whisper
+ * Extract audio track from video (optional optimization for large files)
+ */
+async function extractAudioFromVideo(videoPath: string): Promise<string> {
+  console.log(`[VideoProcessor] Extracting audio from video for better reliability`);
+  
+  const audioPath = path.join(process.cwd(), "public", "uploads", "temp", `audio_${Date.now()}.mp3`);
+  const audioDir = path.dirname(audioPath);
+  
+  if (!fs.existsSync(audioDir)) {
+    fs.mkdirSync(audioDir, { recursive: true });
+  }
+
+  const ffmpegInstance = await getFFmpeg();
+
+  return new Promise((resolve, reject) => {
+    ffmpegInstance(videoPath)
+      .audioCodec("libmp3lame")
+      .audioBitrate(128)
+      .output(audioPath)
+      .on("end", () => {
+        console.log(`[VideoProcessor] Audio extracted to: ${audioPath}`);
+        resolve(audioPath);
+      })
+      .on("error", (err: any) => {
+        console.error("[VideoProcessor] Audio extraction error:", err);
+        reject(err);
+      })
+      .run();
+  });
+}
+
+/**
+ * Transcribe video audio using OpenAI Whisper with retry logic
  */
 export async function transcribeVideo(videoPath: string): Promise<{
   fullText: string;
@@ -83,32 +115,123 @@ export async function transcribeVideo(videoPath: string): Promise<{
 }> {
   console.log(`[VideoProcessor] Transcribing video: ${videoPath}`);
 
-  try {
-    const transcription = await openai.audio.transcriptions.create({
-      file: fs.createReadStream(videoPath) as any,
-      model: "whisper-1",
-      response_format: "verbose_json",
-      timestamp_granularities: ["segment"],
-    });
+  // Check file size (Whisper has 25MB limit)
+  const stats = fs.statSync(videoPath);
+  const fileSizeMB = stats.size / (1024 * 1024);
+  console.log(`[VideoProcessor] Video file size: ${fileSizeMB.toFixed(2)} MB`);
 
-    const segments: TranscriptSegment[] = ((transcription as any).segments || []).map((seg: any) => ({
-      start: seg.start,
-      end: seg.end,
-      text: seg.text,
-    }));
-
-    const fullText = (transcription as any).text || "";
-
-    console.log(`[VideoProcessor] Transcribed ${fullText.length} characters`);
-
-    return {
-      fullText,
-      segments,
-    };
-  } catch (error) {
-    console.error("[VideoProcessor] Transcription error:", error);
-    throw error;
+  if (fileSizeMB > 25) {
+    throw new Error(`Video file too large (${fileSizeMB.toFixed(2)} MB). Whisper API limit is 25 MB. Please compress the video first.`);
   }
+
+  // For files > 10MB, extract audio first for better reliability
+  let audioPath = videoPath;
+  let shouldCleanupAudio = false;
+
+  if (fileSizeMB > 10) {
+    try {
+      audioPath = await extractAudioFromVideo(videoPath);
+      shouldCleanupAudio = true;
+      console.log(`[VideoProcessor] Using extracted audio for transcription`);
+    } catch (error) {
+      console.warn(`[VideoProcessor] Failed to extract audio, using video directly:`, error);
+      // Continue with video file
+    }
+  }
+
+  // Retry logic for network errors
+  const maxRetries = 3;
+  let lastError: any;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`[VideoProcessor] Transcription attempt ${attempt}/${maxRetries}`);
+
+      // Create a fresh read stream for each attempt (use audioPath if extracted, otherwise videoPath)
+      const fileStream = fs.createReadStream(audioPath);
+
+      const transcription = await openai.audio.transcriptions.create(
+        {
+          file: fileStream as any,
+          model: "whisper-1",
+          response_format: "verbose_json",
+          timestamp_granularities: ["segment"],
+        },
+        {
+          timeout: 300000, // 5 minute timeout for large files
+        }
+      );
+
+      const segments: TranscriptSegment[] = ((transcription as any).segments || []).map((seg: any) => ({
+        start: seg.start,
+        end: seg.end,
+        text: seg.text,
+      }));
+
+      const fullText = (transcription as any).text || "";
+
+      console.log(`[VideoProcessor] Transcribed ${fullText.length} characters`);
+
+      // Cleanup extracted audio file if we created one
+      if (shouldCleanupAudio && fs.existsSync(audioPath) && audioPath !== videoPath) {
+        try {
+          fs.unlinkSync(audioPath);
+          console.log(`[VideoProcessor] Cleaned up temporary audio file`);
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+      }
+
+      return {
+        fullText,
+        segments,
+      };
+    } catch (error: any) {
+      lastError = error;
+      const isNetworkError = 
+        error?.code === "ECONNRESET" ||
+        error?.code === "ETIMEDOUT" ||
+        error?.code === "ENOTFOUND" ||
+        error?.message?.includes("ECONNRESET") ||
+        error?.message?.includes("timeout") ||
+        error?.message?.includes("Connection");
+
+      if (isNetworkError && attempt < maxRetries) {
+        const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff: 2s, 4s, 8s
+        console.warn(`[VideoProcessor] Network error on attempt ${attempt}, retrying in ${waitTime}ms...`);
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
+        continue;
+      }
+
+      // If not a network error or last attempt, throw immediately
+      if (!isNetworkError || attempt === maxRetries) {
+        console.error(`[VideoProcessor] Transcription error (attempt ${attempt}):`, error);
+        
+        // Cleanup extracted audio file on error
+        if (shouldCleanupAudio && fs.existsSync(audioPath) && audioPath !== videoPath) {
+          try {
+            fs.unlinkSync(audioPath);
+          } catch (e) {
+            // Ignore cleanup errors
+          }
+        }
+        
+        throw error;
+      }
+    }
+  }
+
+  // Cleanup on final failure
+  if (shouldCleanupAudio && fs.existsSync(audioPath) && audioPath !== videoPath) {
+    try {
+      fs.unlinkSync(audioPath);
+    } catch (e) {
+      // Ignore cleanup errors
+    }
+  }
+
+  // Should never reach here, but TypeScript needs it
+  throw lastError || new Error("Transcription failed after retries");
 }
 
 /**
