@@ -139,6 +139,38 @@ async function main() {
       category: "feature" as const,
       tags: ["ai", "anomaly", "alerts", "detection"],
     },
+
+    // Sample Videos (using Big Buck Bunny - open source test video)
+    {
+      type: "video" as const,
+      url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+      title: "Hypersonix Product Overview",
+      description: "5-minute overview of the Hypersonix platform and key features",
+      category: "demo" as const,
+      tags: ["video", "demo", "overview", "product", "introduction", "platform", "features"],
+      thumbnail: "https://picsum.photos/400/300?random=13",
+      metadata: { duration: 596, width: 1920, height: 1080 },
+    },
+    {
+      type: "video" as const,
+      url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+      title: "Pricing Optimization Demo",
+      description: "See how dynamic pricing works in real-time with live data",
+      category: "demo" as const,
+      tags: ["video", "demo", "pricing", "optimization", "dynamic", "tutorial"],
+      thumbnail: "https://picsum.photos/400/300?random=14",
+      metadata: { duration: 653, width: 1920, height: 1080 },
+    },
+    {
+      type: "video" as const,
+      url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+      title: "Demand Forecasting Walkthrough",
+      description: "Step-by-step guide to setting up and using demand forecasting",
+      category: "demo" as const,
+      tags: ["video", "demo", "forecasting", "demand", "tutorial", "walkthrough", "guide"],
+      thumbnail: "https://picsum.photos/400/300?random=15",
+      metadata: { duration: 15, width: 1920, height: 1080 },
+    },
   ];
 
   // Insert all visual assets
