@@ -212,11 +212,26 @@ export async function processVideoAsset(mediaAssetId: string): Promise<{
   });
 
   try {
-    // Note: For remote videos, you'd need to download first
-    // For now, assuming local file path
-    const videoPath = asset.url.startsWith("http")
-      ? path.join(process.cwd(), "public", "temp", `video_${Date.now()}.mp4`)
-      : asset.url;
+    // Convert public URL to file system path
+    let videoPath: string;
+    
+    if (asset.url.startsWith("http")) {
+      // Remote video - would need to download first
+      videoPath = path.join(process.cwd(), "public", "temp", `video_${Date.now()}.mp4`);
+    } else if (asset.url.startsWith("/")) {
+      // Public URL like /uploads/videos/filename.mp4 -> public/uploads/videos/filename.mp4
+      videoPath = path.join(process.cwd(), "public", asset.url.substring(1));
+    } else {
+      // Already a file system path
+      videoPath = asset.url;
+    }
+    
+    console.log(`[VideoProcessor] Resolved video path: ${videoPath}`);
+    
+    // Verify file exists
+    if (!fs.existsSync(videoPath)) {
+      throw new Error(`Video file not found: ${videoPath}`);
+    }
 
     // 1. Transcribe audio
     const { fullText: transcript, segments } = await transcribeVideo(videoPath);
