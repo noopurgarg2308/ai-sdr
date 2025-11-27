@@ -13,6 +13,7 @@ export interface RealtimeOptions {
   model?: string;
   voice?: "alloy" | "echo" | "shimmer";
   instructions?: string;
+  tools?: any[]; // OpenAI function tool definitions
   onMessage?: (message: RealtimeMessage) => void;
   onError?: (error: Error) => void;
   onAudioDelta?: (audio: ArrayBuffer) => void;
@@ -76,21 +77,29 @@ export class RealtimeClient {
   }
 
   private initializeSession() {
+    const session: any = {
+      modalities: ["text", "audio"],
+      voice: this.options.voice,
+      instructions: this.options.instructions,
+      input_audio_format: "pcm16",
+      output_audio_format: "pcm16",
+      turn_detection: {
+        type: "server_vad",
+        threshold: 0.5,
+        prefix_padding_ms: 300,
+        silence_duration_ms: 500,
+      },
+    };
+
+    // Add tools if provided
+    if (this.options.tools && this.options.tools.length > 0) {
+      session.tools = this.options.tools;
+      session.tool_choice = "auto";
+    }
+
     this.send({
       type: "session.update",
-      session: {
-        modalities: ["text", "audio"],
-        voice: this.options.voice,
-        instructions: this.options.instructions,
-        input_audio_format: "pcm16",
-        output_audio_format: "pcm16",
-        turn_detection: {
-          type: "server_vad",
-          threshold: 0.5,
-          prefix_padding_ms: 300,
-          silence_duration_ms: 500,
-        },
-      },
+      session,
     });
   }
 

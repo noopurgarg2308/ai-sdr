@@ -3,8 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import type { ChatMessage } from "@/types/chat";
 import { RealtimeClient } from "@/lib/realtime";
-import { getCompanyConfigBySlug } from "@/lib/companies";
-import { buildSystemPrompt } from "@/lib/systemPrompt";
+import { toolDefinitions } from "@/lib/tools";
 
 interface WidgetChatProps {
   companyId: string;
@@ -25,6 +24,13 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
   const [error, setError] = useState<string>();
   const [demoClipUrl, setDemoClipUrl] = useState<string>();
   const [meetingLink, setMeetingLink] = useState<string>();
+  const [visualAssets, setVisualAssets] = useState<Array<{
+    type: string;
+    url: string;
+    title: string;
+    description?: string;
+    thumbnail?: string;
+  }>>([]);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const realtimeClientRef = useRef<RealtimeClient | null>(null);
@@ -78,7 +84,7 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
           };
           instructions = `You are an AI SDR for ${company.displayName}. ${company.shortDescription || ''}
           
-Be conversational and helpful. Ask about their role and needs. Offer to search knowledge, show demos, or book meetings when appropriate.`;
+Be conversational and helpful. Ask about their role and needs. Use your tools to search knowledge, show visual content (images, charts, diagrams), show demos, or book meetings when appropriate. Always use visuals to enhance your explanations.`;
         }
       }
 
@@ -88,6 +94,7 @@ Be conversational and helpful. Ask about their role and needs. Offer to search k
         model,
         voice: "alloy",
         instructions,
+        tools: toolDefinitions,
         onMessage: (message) => {
           console.log("[Realtime] Message:", message.type);
         },
@@ -135,6 +142,9 @@ Be conversational and helpful. Ask about their role and needs. Offer to search k
           }
           if (name === "create_meeting_link" && result.url) {
             setMeetingLink(result.url);
+          }
+          if (name === "show_visual" && result.visuals && result.visuals.length > 0) {
+            setVisualAssets((prev) => [...prev, ...result.visuals]);
           }
           
           return result;
@@ -249,6 +259,134 @@ Be conversational and helpful. Ask about their role and needs. Offer to search k
         <div className="border-t p-4 bg-gray-50">
           <h3 className="font-semibold mb-2">Product Demo</h3>
           <video src={demoClipUrl} controls className="w-full rounded-lg shadow-md" />
+        </div>
+      )}
+
+      {/* Visual Assets */}
+      {visualAssets.length > 0 && (
+        <div className="border-t p-4 bg-gray-50">
+          <h3 className="font-semibold mb-3 text-gray-900">Visual Content</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {visualAssets.map((asset, index) => (
+              <div key={index} className="bg-white rounded-lg shadow-sm overflow-hidden">
+                {asset.type === "image" && (
+                  <div>
+                    <img 
+                      src={asset.url} 
+                      alt={asset.title}
+                      className="w-full h-auto"
+                    />
+                    <div className="p-3">
+                      <p className="font-medium text-sm text-gray-900">{asset.title}</p>
+                      {asset.description && (
+                        <p className="text-xs text-gray-600 mt-1">{asset.description}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {asset.type === "video" && (
+                  <div>
+                    <video 
+                      src={asset.url} 
+                      controls 
+                      poster={asset.thumbnail}
+                      className="w-full"
+                    />
+                    <div className="p-3">
+                      <p className="font-medium text-sm text-gray-900">{asset.title}</p>
+                      {asset.description && (
+                        <p className="text-xs text-gray-600 mt-1">{asset.description}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {asset.type === "pdf" && (
+                  <div className="p-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="flex-shrink-0">
+                        <svg className="w-8 h-8 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z"/>
+                          <path fillRule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clipRule="evenodd"/>
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-sm text-gray-900">{asset.title}</p>
+                        {asset.description && (
+                          <p className="text-xs text-gray-600 mt-1">{asset.description}</p>
+                        )}
+                      </div>
+                    </div>
+                    <a
+                      href={asset.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 block w-full text-center bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700 text-sm"
+                    >
+                      📄 View PDF
+                    </a>
+                  </div>
+                )}
+                
+                {asset.type === "chart" && (
+                  <div>
+                    <img 
+                      src={asset.url} 
+                      alt={asset.title}
+                      className="w-full h-auto"
+                    />
+                    <div className="p-3 bg-blue-50">
+                      <p className="font-medium text-sm text-gray-900">{asset.title}</p>
+                      {asset.description && (
+                        <p className="text-xs text-gray-600 mt-1">{asset.description}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {asset.type === "slide" && (
+                  <div className="p-4">
+                    {asset.thumbnail && (
+                      <img 
+                        src={asset.thumbnail} 
+                        alt={asset.title}
+                        className="w-full h-auto rounded mb-3"
+                      />
+                    )}
+                    <p className="font-medium text-sm text-gray-900">{asset.title}</p>
+                    {asset.description && (
+                      <p className="text-xs text-gray-600 mt-1 mb-3">{asset.description}</p>
+                    )}
+                    <a
+                      href={asset.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-full text-center bg-orange-600 text-white py-2 px-4 rounded hover:bg-orange-700 text-sm"
+                    >
+                      📊 View Slides
+                    </a>
+                  </div>
+                )}
+
+                {asset.type === "gif" && (
+                  <div>
+                    <img 
+                      src={asset.url} 
+                      alt={asset.title}
+                      className="w-full h-auto"
+                    />
+                    <div className="p-3">
+                      <p className="font-medium text-sm text-gray-900">{asset.title}</p>
+                      {asset.description && (
+                        <p className="text-xs text-gray-600 mt-1">{asset.description}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

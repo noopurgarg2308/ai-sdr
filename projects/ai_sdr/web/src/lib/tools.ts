@@ -3,6 +3,7 @@ import { searchKnowledge } from "./rag";
 import { getDemoClip } from "./demoMedia";
 import { createMeetingLink } from "./scheduling";
 import { logLeadToCRM, type LeadPayload } from "./crm";
+import { searchMediaAssets, type MediaType, type MediaCategory } from "./media";
 
 export const toolDefinitions = [
   {
@@ -113,6 +114,34 @@ export const toolDefinitions = [
       },
     },
   },
+  {
+    type: "function" as const,
+    function: {
+      name: "show_visual",
+      description:
+        "Show relevant visual content (images, charts, slides, videos) to help explain a concept or answer a question. Use this when a visual would make the explanation clearer or more engaging. Examples: pricing charts, product screenshots, architecture diagrams, comparison tables, feature illustrations.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "What to search for (e.g., 'pricing', 'architecture', 'feature comparison')",
+          },
+          type: {
+            type: "string",
+            enum: ["image", "video", "pdf", "slide", "chart", "gif"],
+            description: "Type of visual content to show",
+          },
+          category: {
+            type: "string",
+            enum: ["product", "pricing", "comparison", "demo", "case-study", "feature", "architecture"],
+            description: "Category of content",
+          },
+        },
+        required: ["query"],
+      },
+    },
+  },
 ];
 
 export async function dispatchToolCall(
@@ -149,6 +178,25 @@ export async function dispatchToolCall(
         companyId,
       };
       return await logLeadToCRM(payload);
+    }
+
+    case "show_visual": {
+      const results = await searchMediaAssets({
+        companyId,
+        query: args.query,
+        type: args.type as MediaType | undefined,
+        category: args.category as MediaCategory | undefined,
+        limit: 3,
+      });
+      return {
+        visuals: results.map((v) => ({
+          type: v.type,
+          url: v.url,
+          title: v.title,
+          description: v.description,
+          thumbnail: v.thumbnail,
+        })),
+      };
     }
 
     default:

@@ -11,18 +11,19 @@ datasource db {
 }
 
 model Company {
-  id               String      @id @default(cuid())
-  slug             String      @unique
+  id               String       @id @default(cuid())
+  slug             String       @unique
   displayName      String
   shortDescription String
   websiteUrl       String?
   config           Json
   ownerEmail       String?
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
   demoClips        DemoClip[]
   documents        Document[]
   chunks           Chunk[]
+  mediaAssets      MediaAsset[]
 }
 
 model DemoClip {
@@ -64,5 +65,24 @@ model Chunk {
 
   @@index([companyId])
   @@index([documentId])
+}
+
+model MediaAsset {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  type        String   // "image", "video", "pdf", "slide", "chart", "gif"
+  url         String
+  title       String
+  description String?
+  category    String?  // "product", "pricing", "comparison", "demo", "case-study"
+  tags        String?  // JSON array of keywords
+  thumbnail   String?  // For videos/PDFs
+  metadata    String?  // JSON: {width, height, duration, pages, etc}
+  createdAt   DateTime @default(now())
+
+  @@index([companyId])
+  @@index([type])
+  @@index([category])
 }
 
