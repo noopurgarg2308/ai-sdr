@@ -1,9 +1,23 @@
 import { openai } from "./openai";
 import { prisma } from "./prisma";
 import { ingestCompanyDoc } from "./rag";
+import * as fs from "fs";
+import * as path from "path";
 
-// Video processing is optional - requires ffmpeg to be installed separately
-// For now, return placeholder implementations
+// Lazy load ffmpeg to avoid build issues
+let ffmpeg: any = null;
+
+async function getFFmpeg() {
+  if (!ffmpeg) {
+    const fluentFfmpeg = await import("fluent-ffmpeg");
+    ffmpeg = fluentFfmpeg.default;
+    
+    // Try to set ffmpeg path if available on system
+    // User should install via: brew install ffmpeg (Mac) or apt-get install ffmpeg (Linux)
+    console.log("[VideoProcessor] Using system ffmpeg (install via: brew install ffmpeg)");
+  }
+  return ffmpeg;
+}
 
 export interface TranscriptSegment {
   start: number;
@@ -24,11 +38,40 @@ export async function extractKeyframes(
   videoPath: string,
   interval: number = 10 // seconds
 ): Promise<string[]> {
-  console.log(`[VideoProcessor] Video frame extraction disabled (ffmpeg not configured)`);
-  console.log(`[VideoProcessor] To enable: install ffmpeg and configure fluent-ffmpeg`);
+  console.log(`[VideoProcessor] Extracting keyframes from ${videoPath} every ${interval}s`);
+
+  const outputDir = path.join(process.cwd(), "public", "uploads", "frames", Date.now().toString());
   
-  // Return empty array - video processing disabled for now
-  return [];
+  // Create output directory
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+
+  const ffmpegInstance = await getFFmpeg();
+
+  return new Promise((resolve, reject) => {
+    const framePaths: string[] = [];
+
+    ffmpegInstance(videoPath)
+      .on("end", () => {
+        console.log(`[VideoProcessor] Extracted ${framePaths.length} frames`);
+        resolve(framePaths);
+      })
+      .on("error", (err: any) => {
+        console.error("[VideoProcessor] Frame extraction error:", err);
+        console.error("[VideoProcessor] Make sure ffmpeg is installed: brew install ffmpeg");
+        reject(err);
+      })
+      .on("filenames", (filenames: string[]) => {
+        framePaths.push(...filenames.map(f => path.join(outputDir, f)));
+      })
+      .screenshots({
+        timestamps: Array.from({ length: 30 }, (_, i) => i * interval), // Extract up to 30 frames
+        folder: outputDir,
+        filename: "frame-%04d.png",
+        size: "1280x720",
+      });
+  });
 }
 
 /**
@@ -38,18 +81,38 @@ export async function transcribeVideo(videoPath: string): Promise<{
   fullText: string;
   segments: TranscriptSegment[];
 }> {
-  console.log(`[VideoProcessor] Video transcription available but frame extraction disabled`);
-  console.log(`[VideoProcessor] For full video processing, configure ffmpeg`);
-  
-  // Transcription still works, just no frame analysis
-  return {
-    fullText: "Video processing disabled - install ffmpeg to enable",
-    segments: [],
-  };
+  console.log(`[VideoProcessor] Transcribing video: ${videoPath}`);
+
+  try {
+    const transcription = await openai.audio.transcriptions.create({
+      file: fs.createReadStream(videoPath) as any,
+      model: "whisper-1",
+      response_format: "verbose_json",
+      timestamp_granularities: ["segment"],
+    });
+
+    const segments: TranscriptSegment[] = ((transcription as any).segments || []).map((seg: any) => ({
+      start: seg.start,
+      end: seg.end,
+      text: seg.text,
+    }));
+
+    const fullText = (transcription as any).text || "";
+
+    console.log(`[VideoProcessor] Transcribed ${fullText.length} characters`);
+
+    return {
+      fullText,
+      segments,
+    };
+  } catch (error) {
+    console.error("[VideoProcessor] Transcription error:", error);
+    throw error;
+  }
 }
 
 /**
- * Analyze video frames using GPT-4 Vision
+ * Analyze video frames using GPT-4 Vision (updated to gpt-4o)
  */
 export async function analyzeFrames(
   framePaths: string[],
@@ -75,7 +138,7 @@ export async function analyzeFrames(
       const base64Frame = `data:image/png;base64,${frameBuffer.toString("base64")}`;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4-vision-preview",
+        model: "gpt-4o",
         messages: [
           {
             role: "user",
