@@ -1,4 +1,37 @@
 import { openai } from "./openai";
+import * as fs from "fs";
+import * as path from "path";
+
+/**
+ * Convert local image path to base64 data URL for OpenAI
+ */
+function imageToBase64(imagePath: string): string {
+  // If it's already a URL, return as is
+  if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+    return imagePath;
+  }
+
+  // Handle local file path
+  const fullPath = imagePath.startsWith("/uploads")
+    ? path.join(process.cwd(), "public", imagePath)
+    : imagePath;
+
+  const imageBuffer = fs.readFileSync(fullPath);
+  const base64 = imageBuffer.toString("base64");
+  
+  // Detect MIME type from extension
+  const ext = path.extname(fullPath).toLowerCase();
+  const mimeTypes: Record<string, string> = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+  };
+  const mimeType = mimeTypes[ext] || "image/png";
+
+  return `data:${mimeType};base64,${base64}`;
+}
 
 /**
  * Extract text and detailed description from an image using GPT-4 Vision
@@ -10,8 +43,12 @@ export async function extractTextFromImage(imageUrl: string): Promise<{
   console.log(`[OCR] Extracting text from image: ${imageUrl}`);
 
   try {
+    // Convert to base64 if local file
+    const processedUrl = imageToBase64(imageUrl);
+    console.log(`[OCR] Using ${processedUrl.startsWith("data:") ? "base64" : "URL"} format`);
+
     const response = await openai.chat.completions.create({
-      model: "gpt-4-vision-preview",
+      model: "gpt-4o",
       messages: [
         {
           role: "user",
@@ -31,7 +68,7 @@ Be comprehensive and detailed. Format as continuous text for search indexing.`,
             {
               type: "image_url",
               image_url: {
-                url: imageUrl,
+                url: processedUrl,
                 detail: "high",
               },
             },
