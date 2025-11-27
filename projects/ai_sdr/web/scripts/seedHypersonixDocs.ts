@@ -2,7 +2,8 @@ import * as dotenv from "dotenv";
 import * as path from "path";
 
 // Load environment variables from .env.local
-dotenv.config({ path: path.resolve(__dirname, "../.env.local") });
+// Use process.cwd() to get project root, not __dirname
+dotenv.config({ path: path.join(process.cwd(), ".env.local") });
 
 import { prisma } from "../src/lib/prisma";
 import { ingestCompanyDoc } from "../src/lib/rag";
