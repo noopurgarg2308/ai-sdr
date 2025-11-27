@@ -70,16 +70,21 @@ export async function searchMediaAssets(options: {
     metadata: asset.metadata ? JSON.parse(asset.metadata) : undefined,
   }));
 
-  // Filter by query if provided
+  // Filter by query if provided (use loose matching with individual words)
   if (query) {
-    const queryLower = query.toLowerCase();
+    const queryWords = query.toLowerCase().split(/\s+/);
     results = results.filter((asset) => {
-      const titleMatch = asset.title.toLowerCase().includes(queryLower);
-      const descMatch = asset.description?.toLowerCase().includes(queryLower);
-      const tagMatch = asset.tags?.some((tag) => tag.toLowerCase().includes(queryLower));
+      const searchText = [
+        asset.title.toLowerCase(),
+        asset.description?.toLowerCase() || "",
+        ...(asset.tags?.map(t => t.toLowerCase()) || []),
+      ].join(" ");
       
-      return titleMatch || descMatch || tagMatch;
+      // Match if ANY query word is found (more lenient)
+      return queryWords.some(word => searchText.includes(word));
     });
+    
+    console.log(`[Media] After query filter: ${results.length} results`);
   }
 
   // Filter by tags if provided

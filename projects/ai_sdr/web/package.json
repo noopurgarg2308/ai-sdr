@@ -10,7 +10,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:generate": "prisma generate",
     "seed:hypersonix": "tsx scripts/seedHypersonixDocs.ts",
-    "seed:visuals": "tsx scripts/seedHypersonixVisuals.ts"
+    "seed:visuals": "tsx scripts/seedHypersonixVisuals.ts",
+    "seed:visuals:real": "tsx scripts/seedHypersonixVisualsReal.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0",
