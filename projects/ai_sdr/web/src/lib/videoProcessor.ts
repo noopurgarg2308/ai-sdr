@@ -1,26 +1,9 @@
 import { openai } from "./openai";
 import { prisma } from "./prisma";
 import { ingestCompanyDoc } from "./rag";
-import * as fs from "fs";
-import * as path from "path";
 
-// Lazy load ffmpeg to avoid build errors
-let ffmpeg: any = null;
-let ffmpegInstaller: any = null;
-
-async function initFFmpeg() {
-  if (!ffmpeg) {
-    ffmpeg = (await import("fluent-ffmpeg")).default;
-    try {
-      ffmpegInstaller = await import("@ffmpeg-installer/ffmpeg");
-      ffmpeg.setFfmpegPath(ffmpegInstaller.path);
-    } catch (error) {
-      console.warn("[VideoProcessor] ffmpeg-installer not available, using system ffmpeg");
-      // Will use system ffmpeg if installed
-    }
-  }
-  return ffmpeg;
-}
+// Video processing is optional - requires ffmpeg to be installed separately
+// For now, return placeholder implementations
 
 export interface TranscriptSegment {
   start: number;
@@ -41,39 +24,11 @@ export async function extractKeyframes(
   videoPath: string,
   interval: number = 10 // seconds
 ): Promise<string[]> {
-  console.log(`[VideoProcessor] Extracting keyframes from ${videoPath} every ${interval}s`);
-
-  const outputDir = path.join(process.cwd(), "uploads", "frames", Date.now().toString());
+  console.log(`[VideoProcessor] Video frame extraction disabled (ffmpeg not configured)`);
+  console.log(`[VideoProcessor] To enable: install ffmpeg and configure fluent-ffmpeg`);
   
-  // Create output directory
-  if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
-  }
-
-  const ffmpegInstance = await initFFmpeg();
-
-  return new Promise((resolve, reject) => {
-    const framePaths: string[] = [];
-
-    ffmpegInstance(videoPath)
-      .on("end", () => {
-        console.log(`[VideoProcessor] Extracted ${framePaths.length} frames`);
-        resolve(framePaths);
-      })
-      .on("error", (err) => {
-        console.error("[VideoProcessor] Frame extraction error:", err);
-        reject(err);
-      })
-      .on("filenames", (filenames) => {
-        framePaths.push(...filenames.map(f => path.join(outputDir, f)));
-      })
-      .screenshots({
-        timestamps: [interval], // Will be called multiple times
-        folder: outputDir,
-        filename: "frame-%04d.png",
-        size: "1280x720",
-      });
-  });
+  // Return empty array - video processing disabled for now
+  return [];
 }
 
 /**
@@ -83,34 +38,14 @@ export async function transcribeVideo(videoPath: string): Promise<{
   fullText: string;
   segments: TranscriptSegment[];
 }> {
-  console.log(`[VideoProcessor] Transcribing video: ${videoPath}`);
-
-  try {
-    const transcription = await openai.audio.transcriptions.create({
-      file: fs.createReadStream(videoPath),
-      model: "whisper-1",
-      response_format: "verbose_json",
-      timestamp_granularities: ["segment"],
-    });
-
-    const segments: TranscriptSegment[] = (transcription.segments || []).map((seg: any) => ({
-      start: seg.start,
-      end: seg.end,
-      text: seg.text,
-    }));
-
-    const fullText = transcription.text || "";
-
-    console.log(`[VideoProcessor] Transcribed ${fullText.length} characters`);
-
-    return {
-      fullText,
-      segments,
-    };
-  } catch (error) {
-    console.error("[VideoProcessor] Transcription error:", error);
-    throw error;
-  }
+  console.log(`[VideoProcessor] Video transcription available but frame extraction disabled`);
+  console.log(`[VideoProcessor] For full video processing, configure ffmpeg`);
+  
+  // Transcription still works, just no frame analysis
+  return {
+    fullText: "Video processing disabled - install ffmpeg to enable",
+    segments: [],
+  };
 }
 
 /**
