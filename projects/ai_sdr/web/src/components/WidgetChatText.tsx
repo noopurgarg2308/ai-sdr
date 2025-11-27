@@ -69,8 +69,21 @@ export default function WidgetChatText({ companyId }: WidgetChatProps) {
       const data = await response.json();
       
       if (data.sessionId) setSessionId(data.sessionId);
-      if (data.demoClipUrl) setDemoClipUrl(data.demoClipUrl);
+      
+      // Add demo clip to visual assets
+      if (data.demoClipUrl) {
+        const demoVisual = {
+          type: "video",
+          url: data.demoClipUrl,
+          title: "Product Demo",
+          description: "Product demonstration video",
+        };
+        setVisualAssets((prev) => [...prev, demoVisual]);
+        setDemoClipUrl(data.demoClipUrl);
+      }
+      
       if (data.meetingLink) setMeetingLink(data.meetingLink);
+      
       if (data.visualAssets && data.visualAssets.length > 0) {
         console.log("[Text Mode] Adding visual assets:", data.visualAssets.length);
         setVisualAssets((prev) => [...prev, ...data.visualAssets]);

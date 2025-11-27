@@ -144,7 +144,16 @@ Be conversational and helpful. Ask about their role and needs. Use your tools to
             
           // Handle special results
           if (name === "get_demo_clip" && result && result.url) {
-            console.log("[Realtime] Setting demo clip:", result.url);
+            console.log("[Realtime] Got demo clip:", result.url);
+            // Add demo clip to visual assets instead of separate state
+            const demoVisual = {
+              type: "video",
+              url: result.url,
+              title: result.title || "Product Demo",
+              description: "Product demonstration video",
+            };
+            setVisualAssets((prev) => [...prev, demoVisual]);
+            // Also set demoClipUrl for backward compatibility
             setDemoClipUrl(result.url);
           }
           if (name === "create_meeting_link" && result && result.url) {
