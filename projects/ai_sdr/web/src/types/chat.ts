@@ -55,5 +55,12 @@ export interface ChatResponse {
   demoClipUrl?: string;
   showMeetingPrompt?: boolean;
   meetingLink?: string;
+  visualAssets?: Array<{
+    type: string;
+    url: string;
+    title: string;
+    description?: string;
+    thumbnail?: string;
+  }>;
 }
 

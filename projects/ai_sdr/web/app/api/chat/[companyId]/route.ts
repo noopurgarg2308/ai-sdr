@@ -44,6 +44,7 @@ export async function POST(
     let demoClipUrl: string | undefined;
     let meetingLink: string | undefined;
     let showMeetingPrompt = false;
+    let visualAssets: Array<any> = [];
 
     if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
       // Execute all tool calls
@@ -59,6 +60,9 @@ export async function POST(
           if (toolCall.function.name === "create_meeting_link" && result) {
             meetingLink = result.url;
             showMeetingPrompt = true;
+          }
+          if (toolCall.function.name === "show_visual" && result && result.visuals) {
+            visualAssets = [...visualAssets, ...result.visuals];
           }
 
           return {
@@ -114,6 +118,7 @@ export async function POST(
       demoClipUrl,
       showMeetingPrompt,
       meetingLink,
+      visualAssets: visualAssets.length > 0 ? visualAssets : undefined,
     };
 
     return NextResponse.json(response);
