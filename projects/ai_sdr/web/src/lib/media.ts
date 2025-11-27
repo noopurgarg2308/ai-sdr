@@ -50,7 +50,10 @@ export async function searchMediaAssets(options: {
     orderBy: { createdAt: "desc" },
   });
 
+  console.log(`[Media] Found ${assets.length} assets from database`);
+
   if (assets.length === 0) {
+    console.log(`[Media] No assets found for companyId=${companyId}, type=${type}, category=${category}`);
     return [];
   }
 
@@ -91,7 +94,13 @@ export async function searchMediaAssets(options: {
     });
   }
 
-  return results.slice(0, limit);
+  const finalResults = results.slice(0, limit);
+  console.log(`[Media] Returning ${finalResults.length} results after filtering`);
+  finalResults.forEach((r, i) => {
+    console.log(`  ${i + 1}. ${r.title} (${r.type})`);
+  });
+  
+  return finalResults;
 }
 
 /**
