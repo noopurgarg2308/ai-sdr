@@ -123,31 +123,49 @@ Be conversational and helpful. Ask about their role and needs. Use your tools to
         onFunctionCall: async (name, args) => {
           console.log("[Realtime] Function call:", name, args);
           
-          // Call the appropriate tool via your existing API
-          const response = await fetch(`/api/chat/${companyId}/tool`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, args }),
-          });
-          
-          if (!response.ok) {
-            return { error: "Tool execution failed" };
+          try {
+            // Call the appropriate tool via your existing API
+            const response = await fetch(`/api/chat/${companyId}/tool`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ name, args }),
+            });
+            
+            console.log("[Realtime] Tool response status:", response.status);
+            
+            if (!response.ok) {
+              const errorText = await response.text();
+              console.error("[Realtime] Tool execution failed:", errorText);
+              return { error: "Tool execution failed", details: errorText };
+            }
+            
+            const result = await response.json();
+            console.log("[Realtime] Tool result:", name, result);
+            
+            // Handle special results
+            if (name === "get_demo_clip" && result.url) {
+              console.log("[Realtime] Setting demo clip:", result.url);
+              setDemoClipUrl(result.url);
+            }
+            if (name === "create_meeting_link" && result.url) {
+              console.log("[Realtime] Setting meeting link:", result.url);
+              setMeetingLink(result.url);
+            }
+            if (name === "show_visual") {
+              console.log("[Realtime] Show visual result:", result);
+              if (result.visuals && result.visuals.length > 0) {
+                console.log("[Realtime] Adding", result.visuals.length, "visual assets");
+                setVisualAssets((prev) => [...prev, ...result.visuals]);
+              } else {
+                console.warn("[Realtime] No visuals in result:", result);
+              }
+            }
+            
+            return result;
+          } catch (error) {
+            console.error("[Realtime] Tool execution error:", error);
+            return { error: "Tool execution exception", details: String(error) };
           }
-          
-          const result = await response.json();
-          
-          // Handle special results
-          if (name === "get_demo_clip" && result.url) {
-            setDemoClipUrl(result.url);
-          }
-          if (name === "create_meeting_link" && result.url) {
-            setMeetingLink(result.url);
-          }
-          if (name === "show_visual" && result.visuals && result.visuals.length > 0) {
-            setVisualAssets((prev) => [...prev, ...result.visuals]);
-          }
-          
-          return result;
         },
       });
 
