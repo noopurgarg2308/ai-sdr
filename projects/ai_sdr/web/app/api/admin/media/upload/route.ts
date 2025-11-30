@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
+import { writeFile, mkdir, unlink } from "fs/promises";
 import { existsSync } from "fs";
 import * as path from "path";
 import { addMediaAsset } from "@/lib/media";
 import { queueMediaProcessing } from "@/lib/queue";
+import { convertToMP4 } from "@/lib/videoProcessor";
 
 export async function POST(request: NextRequest) {
   try {
@@ -58,8 +59,53 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Upload] Saved file: ${filepath}`);
 
+    // Check if this is a QuickTime/MOV file that needs conversion
+    const isQuickTime = 
+      fileType === "video/quicktime" || 
+      file.name.toLowerCase().endsWith(".mov") ||
+      file.name.toLowerCase().endsWith(".qt");
+    
+    let finalFilepath = filepath;
+    let finalFilename = filename;
+    let finalPublicUrl = `/uploads/${mediaType}s/${filename}`;
+    let originalFileDeleted = false;
+
+    // Convert QuickTime/MOV to MP4 if needed
+    if (isQuickTime && mediaType === "video") {
+      try {
+        console.log(`[Upload] Converting QuickTime file to MP4: ${filepath}`);
+        
+        // Generate MP4 filename
+        const mp4Filename = filename.replace(/\.(mov|qt)$/i, ".mp4");
+        const mp4Filepath = path.join(uploadDir, mp4Filename);
+        
+        // Convert to MP4
+        const convertedPath = await convertToMP4(filepath, mp4Filepath);
+        
+        // Delete original MOV file
+        try {
+          await unlink(filepath);
+          originalFileDeleted = true;
+          console.log(`[Upload] Deleted original QuickTime file: ${filepath}`);
+        } catch (unlinkError) {
+          console.warn(`[Upload] Could not delete original file: ${unlinkError}`);
+        }
+        
+        // Update paths to use MP4 version
+        finalFilepath = convertedPath;
+        finalFilename = mp4Filename;
+        finalPublicUrl = `/uploads/${mediaType}s/${mp4Filename}`;
+        
+        console.log(`[Upload] Successfully converted to MP4: ${finalFilepath}`);
+      } catch (conversionError) {
+        console.error(`[Upload] Failed to convert QuickTime to MP4:`, conversionError);
+        // Continue with original file if conversion fails
+        console.log(`[Upload] Using original file format (may not be web-compatible)`);
+      }
+    }
+
     // Create public URL
-    const publicUrl = `/uploads/${mediaType}s/${filename}`;
+    const publicUrl = finalPublicUrl;
 
     // Create media asset in database
     const asset = await addMediaAsset({
@@ -72,8 +118,9 @@ export async function POST(request: NextRequest) {
       metadata: {
         originalFilename: file.name,
         fileSize: file.size,
-        mimeType: file.type,
+        mimeType: isQuickTime && originalFileDeleted ? "video/mp4" : file.type,
         uploadedAt: new Date().toISOString(),
+        convertedFromQuickTime: isQuickTime && originalFileDeleted,
       },
     });
 

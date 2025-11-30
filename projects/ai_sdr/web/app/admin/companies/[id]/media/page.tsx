@@ -3,14 +3,26 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 
+interface FrameAnalysis {
+  timestamp: number;
+  description: string;
+  frameUrl?: string;
+}
+
 interface MediaAsset {
   id: string;
   type: string;
   url: string;
   title: string;
   description?: string;
+  category?: string;
   processingStatus?: string;
+  transcript?: string;
+  frameAnalysis?: FrameAnalysis[];
+  extractedText?: string;
+  processedAt?: string;
   createdAt: string;
+  documents?: Array<{ id: string; title: string }>;
 }
 
 export default function CompanyMediaPage() {
@@ -22,6 +34,7 @@ export default function CompanyMediaPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string>();
   const [error, setError] = useState<string>();
+  const [expandedAsset, setExpandedAsset] = useState<string | null>(null);
 
   // Form state
   const [title, setTitle] = useState("");
@@ -36,14 +49,11 @@ export default function CompanyMediaPage() {
 
   const fetchAssets = async () => {
     try {
-      // Fetch company's media assets
-      const response = await fetch(`/api/admin/companies/${companyId}`);
-      if (!response.ok) throw new Error("Failed to fetch company");
+      const response = await fetch(`/api/admin/companies/${companyId}/media`);
+      if (!response.ok) throw new Error("Failed to fetch media assets");
       
-      const company = await response.json();
-      
-      // For now, fetch all assets (would need proper API endpoint)
-      setAssets([]);
+      const data = await response.json();
+      setAssets(data.assets || []);
       setIsLoading(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load assets");
@@ -283,7 +293,7 @@ export default function CompanyMediaPage() {
           </ul>
         </div>
 
-        {/* Media Library (Placeholder) */}
+        {/* Media Library */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-semibold mb-4">Uploaded Media</h2>
           {isLoading ? (
@@ -291,15 +301,146 @@ export default function CompanyMediaPage() {
           ) : assets.length === 0 ? (
             <p className="text-gray-500">No media uploaded yet. Upload your first image or video above!</p>
           ) : (
-            <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-4">
               {assets.map((asset) => (
-                <div key={asset.id} className="border rounded p-3">
-                  <p className="font-medium">{asset.title}</p>
-                  <p className="text-xs text-gray-500">{asset.type}</p>
-                  {asset.processingStatus && (
-                    <span className="text-xs px-2 py-1 bg-gray-100 rounded">
-                      {asset.processingStatus}
-                    </span>
+                <div key={asset.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="font-semibold text-lg">{asset.title}</h3>
+                        <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded">
+                          {asset.type}
+                        </span>
+                        {asset.processingStatus && (
+                          <span className={`text-xs px-2 py-1 rounded ${
+                            asset.processingStatus === "completed" ? "bg-green-100 text-green-800" :
+                            asset.processingStatus === "processing" ? "bg-yellow-100 text-yellow-800" :
+                            asset.processingStatus === "failed" ? "bg-red-100 text-red-800" :
+                            "bg-gray-100 text-gray-800"
+                          }`}>
+                            {asset.processingStatus}
+                          </span>
+                        )}
+                      </div>
+                      {asset.description && (
+                        <p className="text-sm text-gray-600 mb-2">{asset.description}</p>
+                      )}
+                      <div className="flex items-center gap-4 text-xs text-gray-500">
+                        <span>Uploaded: {new Date(asset.createdAt).toLocaleString()}</span>
+                        {asset.processedAt && (
+                          <span>Processed: {new Date(asset.processedAt).toLocaleString()}</span>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setExpandedAsset(expandedAsset === asset.id ? null : asset.id)}
+                      className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                    >
+                      {expandedAsset === asset.id ? "Hide Details" : "Show Details"}
+                    </button>
+                  </div>
+
+                  {/* Expanded Details */}
+                  {expandedAsset === asset.id && (
+                    <div className="mt-4 pt-4 border-t space-y-4">
+                      {/* Video Preview */}
+                      {asset.type === "video" && (
+                        <div>
+                          <video
+                            src={asset.url}
+                            controls
+                            className="w-full max-w-2xl rounded-lg"
+                          >
+                            Your browser does not support the video tag.
+                          </video>
+                        </div>
+                      )}
+
+                      {/* Image Preview */}
+                      {asset.type === "image" && (
+                        <div>
+                          <img
+                            src={asset.url}
+                            alt={asset.title}
+                            className="max-w-2xl rounded-lg border"
+                          />
+                        </div>
+                      )}
+
+                      {/* Transcript */}
+                      {asset.transcript && (
+                        <div>
+                          <h4 className="font-semibold mb-2">📝 Transcript</h4>
+                          <div className="bg-gray-50 rounded p-3 max-h-60 overflow-y-auto">
+                            <p className="text-sm whitespace-pre-wrap">{asset.transcript}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Frame Analysis */}
+                      {asset.frameAnalysis && asset.frameAnalysis.length > 0 && (
+                        <div>
+                          <h4 className="font-semibold mb-2">🖼️ Frame Analysis ({asset.frameAnalysis.length} frames)</h4>
+                          <div className="space-y-3 max-h-96 overflow-y-auto">
+                            {asset.frameAnalysis.map((frame, idx) => (
+                              <div key={idx} className="bg-gray-50 rounded p-3 border">
+                                <div className="flex items-start gap-3">
+                                  {frame.frameUrl && (
+                                    <img
+                                      src={frame.frameUrl}
+                                      alt={`Frame at ${formatTimestamp(frame.timestamp)}`}
+                                      className="w-32 h-20 object-cover rounded border"
+                                      onError={(e) => {
+                                        (e.target as HTMLImageElement).style.display = "none";
+                                      }}
+                                    />
+                                  )}
+                                  <div className="flex-1">
+                                    <div className="text-xs text-gray-500 mb-1">
+                                      {formatTimestamp(frame.timestamp)}
+                                    </div>
+                                    <p className="text-sm">{frame.description}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Extracted Text (for images) */}
+                      {asset.type === "image" && asset.extractedText && (
+                        <div>
+                          <h4 className="font-semibold mb-2">📄 Extracted Text</h4>
+                          <div className="bg-gray-50 rounded p-3 max-h-60 overflow-y-auto">
+                            <p className="text-sm whitespace-pre-wrap">{asset.extractedText}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Linked Documents */}
+                      {asset.documents && asset.documents.length > 0 && (
+                        <div>
+                          <h4 className="font-semibold mb-2">📚 Linked RAG Documents</h4>
+                          <ul className="list-disc list-inside space-y-1">
+                            {asset.documents.map((doc) => (
+                              <li key={doc.id} className="text-sm text-gray-600">{doc.title}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* No processing results */}
+                      {!asset.transcript && !asset.frameAnalysis && !asset.extractedText && (
+                        <div className="text-sm text-gray-500 italic">
+                          {asset.processingStatus === "processing" 
+                            ? "Processing in progress..." 
+                            : asset.processingStatus === "failed"
+                            ? "Processing failed. Check logs for details."
+                            : "No processing results yet. Enable auto-process when uploading."}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               ))}
@@ -309,5 +450,11 @@ export default function CompanyMediaPage() {
       </div>
     </div>
   );
+}
+
+function formatTimestamp(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 

@@ -32,6 +32,69 @@ export interface FrameDescription {
 }
 
 /**
+ * Convert QuickTime (.mov) or other video formats to MP4
+ * @param inputPath - Path to input video file (e.g., .mov, .qt, etc.)
+ * @param outputPath - Optional output path. If not provided, creates MP4 in same directory
+ * @returns Path to the converted MP4 file
+ */
+export async function convertToMP4(
+  inputPath: string,
+  outputPath?: string
+): Promise<string> {
+  console.log(`[VideoProcessor] Converting ${inputPath} to MP4`);
+
+  // Verify input file exists
+  if (!fs.existsSync(inputPath)) {
+    throw new Error(`Input file not found: ${inputPath}`);
+  }
+
+  // Generate output path if not provided
+  if (!outputPath) {
+    const inputDir = path.dirname(inputPath);
+    const inputName = path.basename(inputPath, path.extname(inputPath));
+    outputPath = path.join(inputDir, `${inputName}.mp4`);
+  }
+
+  // Ensure output directory exists
+  const outputDir = path.dirname(outputPath);
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+
+  const ffmpegInstance = await getFFmpeg();
+
+  return new Promise((resolve, reject) => {
+    ffmpegInstance(inputPath)
+      .videoCodec("libx264") // H.264 codec for broad compatibility
+      .audioCodec("aac") // AAC audio codec
+      .outputOptions([
+        "-preset medium", // Encoding speed vs compression balance
+        "-crf 23", // Quality setting (18-28, lower = better quality)
+        "-movflags +faststart", // Enable web streaming optimization
+      ])
+      .output(outputPath)
+      .on("start", (commandLine: string) => {
+        console.log(`[VideoProcessor] FFmpeg command: ${commandLine}`);
+      })
+      .on("progress", (progress: any) => {
+        if (progress.percent) {
+          console.log(`[VideoProcessor] Conversion progress: ${Math.round(progress.percent)}%`);
+        }
+      })
+      .on("end", () => {
+        console.log(`[VideoProcessor] Successfully converted to: ${outputPath}`);
+        resolve(outputPath!);
+      })
+      .on("error", (err: any) => {
+        console.error("[VideoProcessor] Conversion error:", err);
+        console.error("[VideoProcessor] Make sure ffmpeg is installed: brew install ffmpeg");
+        reject(err);
+      })
+      .run();
+  });
+}
+
+/**
  * Extract keyframes from video at regular intervals
  */
 export async function extractKeyframes(
@@ -50,20 +113,27 @@ export async function extractKeyframes(
   const ffmpegInstance = await getFFmpeg();
 
   return new Promise((resolve, reject) => {
-    const framePaths: string[] = [];
-
     ffmpegInstance(videoPath)
       .on("end", () => {
-        console.log(`[VideoProcessor] Extracted ${framePaths.length} frames`);
-        resolve(framePaths);
+        // Read the directory to get actual extracted frames (more reliable than filenames event)
+        try {
+          const files = fs.readdirSync(outputDir);
+          const frameFiles = files
+            .filter(f => f.endsWith('.png'))
+            .sort() // Sort to ensure consistent order
+            .map(f => path.join(outputDir, f));
+          
+          console.log(`[VideoProcessor] Extracted ${frameFiles.length} frames from ${outputDir}`);
+          resolve(frameFiles);
+        } catch (err: any) {
+          console.error("[VideoProcessor] Error reading frame directory:", err);
+          resolve([]); // Return empty array instead of failing
+        }
       })
       .on("error", (err: any) => {
         console.error("[VideoProcessor] Frame extraction error:", err);
         console.error("[VideoProcessor] Make sure ffmpeg is installed: brew install ffmpeg");
         reject(err);
-      })
-      .on("filenames", (filenames: string[]) => {
-        framePaths.push(...filenames.map(f => path.join(outputDir, f)));
       })
       .screenshots({
         timestamps: Array.from({ length: 30 }, (_, i) => i * interval), // Extract up to 30 frames
@@ -289,16 +359,23 @@ Focus on: UI elements, data shown, user actions, visual design.`,
 
       const description = response.choices[0].message.content || "";
 
+      // Convert filesystem path to public URL
+      const publicFrameUrl = framePath.replace(
+        path.join(process.cwd(), "public"),
+        ""
+      ).replace(/\\/g, "/"); // Normalize path separators
+
       descriptions.push({
         timestamp,
         description,
-        frameUrl: framePath,
+        frameUrl: publicFrameUrl,
       });
 
       console.log(`[VideoProcessor] Frame ${i + 1}/${framePaths.length}: ${description.substring(0, 50)}...`);
-    } catch (error) {
-      console.error(`[VideoProcessor] Error analyzing frame ${i}:`, error);
-      // Continue with next frame
+    } catch (error: any) {
+      console.error(`[VideoProcessor] Error analyzing frame ${i} (${framePath}):`, error?.message || error);
+      console.error(`[VideoProcessor] Error details:`, error);
+      // Continue with next frame - don't fail entire process if one frame fails
     }
   }
 
