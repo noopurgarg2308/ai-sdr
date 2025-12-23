@@ -213,6 +213,27 @@ For questions or issues:
 4. Check browser console for client-side errors
 5. Review server logs for API errors
 
+## 🔧 Recent Updates (December 23, 2025)
+
+### RAG Search Behavior Fix
+**Problem**: AI was not searching the knowledge base for questions outside its perceived domain (e.g., questions about Airbnb when configured for QuantivalQ).
+
+**Solution**: 
+- Updated system prompt (`src/lib/systemPrompt.ts`) to explicitly instruct AI to **ALWAYS search the knowledge base FIRST** for every question
+- Updated tool description (`src/lib/toolDefinitions.ts`) to remove domain restrictions and emphasize searching for ANY topic
+- AI now properly utilizes uploaded documents regardless of topic
+
+**Impact**: 
+- ✅ Knowledge base now searched for all questions
+- ✅ Uploaded documents (competitor info, industry reports, etc.) properly utilized
+- ✅ Reduced reliance on general training data
+
+**Files Modified**:
+- `src/lib/systemPrompt.ts` - Added explicit search-first instructions
+- `src/lib/toolDefinitions.ts` - Updated search_knowledge tool description
+
+See `docs/2025-12-23-session-summary.md` for detailed documentation.
+
 ---
 
 **Status**: ✅ Core implementation complete, ready for integration and deployment

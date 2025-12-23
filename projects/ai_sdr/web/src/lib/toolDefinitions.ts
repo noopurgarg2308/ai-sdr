@@ -9,7 +9,7 @@ export const toolDefinitions = [
     function: {
       name: "search_knowledge",
       description:
-        "Search company-specific documentation, FAQs, and product information using semantic search. Use this when you need accurate information to answer a question about the company's products or services.",
+        "Search the knowledge base using semantic search. Use this tool to find information about ANY topic - the knowledge base may contain documentation, FAQs, product information, company information, or other relevant content. ALWAYS use this tool first when answering questions, regardless of the topic. Search for any question the user asks.",
       parameters: {
         type: "object",
         properties: {
@@ -132,7 +132,7 @@ export const toolDefinitions = [
           },
           category: {
             type: "string",
-            enum: ["product", "pricing", "comparison", "demo", "case-study", "feature", "architecture"],
+            enum: ["product", "pricing", "comparison", "demo", "case-study", "feature", "architecture", "company-info"],
             description: "Category of content",
           },
         },
