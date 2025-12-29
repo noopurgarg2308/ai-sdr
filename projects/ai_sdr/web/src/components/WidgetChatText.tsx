@@ -84,10 +84,38 @@ export default function WidgetChatText({ companyId }: WidgetChatProps) {
       
       if (data.meetingLink) setMeetingLink(data.meetingLink);
       
-      if (data.visualAssets && data.visualAssets.length > 0) {
-        console.log("[Text Mode] Adding visual assets:", data.visualAssets.length);
-        setVisualAssets((prev) => [...prev, ...data.visualAssets]);
+      // Handle visual assets - replace with new ones from this response (don't accumulate)
+      const newVisualAssets: Array<{
+        type: string;
+        url: string;
+        title: string;
+        description?: string;
+        thumbnail?: string;
+      }> = [];
+      
+      // Add demo clip if present
+      if (data.demoClipUrl) {
+        const demoVisual = {
+          type: "video",
+          url: data.demoClipUrl,
+          title: "Product Demo",
+          description: "Product demonstration video",
+        };
+        newVisualAssets.push(demoVisual);
       }
+      
+      // Add search result visuals
+      if (data.visualAssets && Array.isArray(data.visualAssets) && data.visualAssets.length > 0) {
+        console.log("[Text Mode] Adding visual assets:", data.visualAssets.length);
+        console.log("[Text Mode] Visual assets:", data.visualAssets);
+        newVisualAssets.push(...data.visualAssets);
+      } else {
+        console.log("[Text Mode] No visual assets in response");
+      }
+      
+      // Replace visual assets (don't accumulate across messages)
+      console.log(`[Text Mode] Setting ${newVisualAssets.length} visual assets`);
+      setVisualAssets(newVisualAssets);
 
       setMessages((prev) => [...prev, data.reply]);
     } catch (error) {
@@ -166,16 +194,32 @@ export default function WidgetChatText({ companyId }: WidgetChatProps) {
           <div className="border-t p-4 bg-gray-50">
             <h3 className="font-semibold mb-3 text-gray-900">Visual Content</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[600px] overflow-y-auto">
-            {visualAssets.map((asset, index) => (
+            {visualAssets.map((asset, index) => {
+              console.log(`[WidgetText] Rendering visual asset ${index}:`, asset);
+              return (
               <div key={index} className="bg-white rounded-lg shadow-sm overflow-hidden">
-                {asset.type === "image" && (
+                {/* Images, charts, and slides are all displayed as images */}
+                {(asset.type === "image" || asset.type === "chart" || asset.type === "slide") && (
                   <div>
                     <img 
                       src={asset.url} 
                       alt={asset.title}
                       className="w-full h-auto"
+                      onError={(e) => {
+                        console.error(`[WidgetText] Failed to load image: ${asset.url}`, e);
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        // Show error message
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'p-4 bg-red-50 text-red-600 text-sm';
+                        errorDiv.textContent = `${asset.type} failed to load: ${asset.title}`;
+                        target.parentElement?.appendChild(errorDiv);
+                      }}
+                      onLoad={() => {
+                        console.log(`[WidgetText] Successfully loaded ${asset.type}: ${asset.url}`);
+                      }}
                     />
-                    <div className="p-3">
+                    <div className={`p-3 ${asset.type === "chart" ? "bg-blue-50" : asset.type === "slide" ? "bg-purple-50" : ""}`}>
                       <p className="font-medium text-sm text-gray-900">{asset.title}</p>
                       {asset.description && (
                         <p className="text-xs text-gray-600 mt-1">{asset.description}</p>
@@ -200,24 +244,9 @@ export default function WidgetChatText({ companyId }: WidgetChatProps) {
                     </div>
                   </div>
                 )}
-                
-                {asset.type === "chart" && (
-                  <div>
-                    <img 
-                      src={asset.url} 
-                      alt={asset.title}
-                      className="w-full h-auto"
-                    />
-                    <div className="p-3 bg-blue-50">
-                      <p className="font-medium text-sm text-gray-900">{asset.title}</p>
-                      {asset.description && (
-                        <p className="text-xs text-gray-600 mt-1">{asset.description}</p>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
-              ))}
+              );
+            })}
             </div>
           </div>
         )}

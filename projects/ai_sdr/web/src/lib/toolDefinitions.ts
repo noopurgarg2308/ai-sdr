@@ -117,7 +117,7 @@ export const toolDefinitions = [
     function: {
       name: "show_visual",
       description:
-        "Show relevant visual content (images, charts, slides, videos) to help explain a concept or answer a question. Use this when a visual would make the explanation clearer or more engaging. Examples: pricing charts, product screenshots, architecture diagrams, comparison tables, feature illustrations.",
+        "Show relevant visual content (images, charts, slides, videos) to help explain a concept or answer a question. Use this when a visual would make the explanation clearer or more engaging. Examples: pricing charts, product screenshots, architecture diagrams, comparison tables, feature illustrations. Note: When search_knowledge returns linked visuals, those are automatically included - you don't need to call this tool separately for those.",
       parameters: {
         type: "object",
         properties: {

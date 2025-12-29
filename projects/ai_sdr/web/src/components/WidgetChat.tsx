@@ -31,6 +31,11 @@ export default function WidgetChat({ companyId }: WidgetChatProps) {
     description?: string;
     thumbnail?: string;
   }>>([]);
+  
+  // Debug: Log visualAssets changes
+  useEffect(() => {
+    console.log(`[Widget] visualAssets state changed:`, visualAssets.length, visualAssets);
+  }, [visualAssets]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
 
@@ -109,9 +114,23 @@ export default function WidgetChat({ companyId }: WidgetChatProps) {
 
       const data = await response.json();
       
+      console.log(`[Widget] Full API response:`, data);
+      console.log(`[Widget] visualAssets in response:`, data.visualAssets);
+      console.log(`[Widget] visualAssets type:`, typeof data.visualAssets);
+      console.log(`[Widget] visualAssets is array:`, Array.isArray(data.visualAssets));
+      
       if (data.sessionId) setSessionId(data.sessionId);
       
-      // Add demo clip to visual assets
+      // Handle visual assets - replace with new ones from this response
+      const newVisualAssets: Array<{
+        type: string;
+        url: string;
+        title: string;
+        description?: string;
+        thumbnail?: string;
+      }> = [];
+      
+      // Add demo clip if present
       if (data.demoClipUrl) {
         const demoVisual = {
           type: "video",
@@ -119,15 +138,30 @@ export default function WidgetChat({ companyId }: WidgetChatProps) {
           title: "Product Demo",
           description: "Product demonstration video",
         };
-        setVisualAssets((prev) => [...prev, demoVisual]);
+        newVisualAssets.push(demoVisual);
         setDemoClipUrl(data.demoClipUrl);
       }
       
-      if (data.meetingLink) setMeetingLink(data.meetingLink);
-      
-      if (data.visualAssets && data.visualAssets.length > 0) {
-        setVisualAssets((prev) => [...prev, ...data.visualAssets]);
+      // Add search result visuals
+      if (data.visualAssets) {
+        if (Array.isArray(data.visualAssets) && data.visualAssets.length > 0) {
+          console.log(`[Widget] Received ${data.visualAssets.length} visual assets:`, data.visualAssets);
+          newVisualAssets.push(...data.visualAssets);
+        } else {
+          console.log(`[Widget] visualAssets exists but is empty or not an array:`, data.visualAssets);
+        }
+      } else {
+        console.log(`[Widget] No visualAssets field in response`);
       }
+      
+      // Update visual assets (replace, don't accumulate)
+      console.log(`[Widget] Setting ${newVisualAssets.length} visual assets`);
+      if (newVisualAssets.length > 0) {
+        console.log(`[Widget] Visual assets details:`, newVisualAssets.map(v => ({ type: v.type, title: v.title, url: v.url })));
+      }
+      setVisualAssets(newVisualAssets);
+      
+      if (data.meetingLink) setMeetingLink(data.meetingLink);
 
       setMessages((prev) => [...prev, data.reply]);
 
@@ -254,16 +288,25 @@ export default function WidgetChat({ companyId }: WidgetChatProps) {
           <div className="border-t p-4 bg-gray-50">
             <h3 className="font-semibold mb-3 text-gray-900">Visual Content</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[600px] overflow-y-auto">
-            {visualAssets.map((asset, index) => (
+            {visualAssets.map((asset, index) => {
+              console.log(`[Widget] Rendering visual asset ${index}:`, asset);
+              return (
               <div key={index} className="bg-white rounded-lg shadow-sm overflow-hidden">
-                {asset.type === "image" && (
+                {/* Images, charts, and slides are all displayed as images */}
+                {(asset.type === "image" || asset.type === "chart" || asset.type === "slide") && (
                   <div>
                     <img 
                       src={asset.url} 
                       alt={asset.title}
                       className="w-full h-auto"
+                      onError={(e) => {
+                        console.error(`[Widget] Failed to load image: ${asset.url}`, e);
+                      }}
+                      onLoad={() => {
+                        console.log(`[Widget] Successfully loaded image: ${asset.url}`);
+                      }}
                     />
-                    <div className="p-3">
+                    <div className={`p-3 ${asset.type === "chart" ? "bg-blue-50" : asset.type === "slide" ? "bg-purple-50" : ""}`}>
                       <p className="font-medium text-sm text-gray-900">{asset.title}</p>
                       {asset.description && (
                         <p className="text-xs text-gray-600 mt-1">{asset.description}</p>
@@ -288,25 +331,19 @@ export default function WidgetChat({ companyId }: WidgetChatProps) {
                     </div>
                   </div>
                 )}
-                
-                {asset.type === "chart" && (
-                  <div>
-                    <img 
-                      src={asset.url} 
-                      alt={asset.title}
-                      className="w-full h-auto"
-                    />
-                    <div className="p-3 bg-blue-50">
-                      <p className="font-medium text-sm text-gray-900">{asset.title}</p>
-                      {asset.description && (
-                        <p className="text-xs text-gray-600 mt-1">{asset.description}</p>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
-              ))}
+              );
+            })}
             </div>
+          </div>
+        )}
+        
+        {/* Debug: Show visual assets count even if empty */}
+        {visualAssets.length === 0 && (
+          <div className="border-t p-4 bg-gray-50">
+            <h3 className="font-semibold mb-3 text-gray-900">Visual Content</h3>
+            <p className="text-sm text-gray-500">No visual content available</p>
+            <p className="text-xs text-gray-400 mt-2">Debug: visualAssets.length = {visualAssets.length}</p>
           </div>
         )}
 

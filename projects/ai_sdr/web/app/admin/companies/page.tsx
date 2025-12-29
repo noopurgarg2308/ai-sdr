@@ -241,7 +241,13 @@ export default function AdminCompaniesPage() {
                         )}
                       </div>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right flex gap-2">
+                      <a
+                        href={`/admin/companies/${company.id}/media`}
+                        className="inline-block bg-blue-600 text-white px-4 py-2 rounded text-sm font-semibold hover:bg-blue-700"
+                      >
+                        📁 Media
+                      </a>
                       <a
                         href={`/widget/${company.slug}`}
                         target="_blank"

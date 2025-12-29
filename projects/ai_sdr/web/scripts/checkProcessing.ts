@@ -26,10 +26,25 @@ async function main() {
 
   console.log("\n📦 Recent Media Assets:");
   assets.forEach((asset) => {
-    console.log(`- ${asset.title} (${asset.type})`);
+    console.log(`\n- ${asset.title} (${asset.type})`);
     console.log(`  URL: ${asset.url}`);
     console.log(`  Status: ${asset.processingStatus || "not processed"}`);
-    console.log(`  Has extractedText: ${asset.extractedText ? "YES" : "NO"}`);
+    console.log(`  Created: ${asset.createdAt}`);
+    
+    if (asset.type === "video") {
+      console.log(`  Transcript: ${asset.transcript ? `YES (${asset.transcript.length} chars)` : "NO"}`);
+      console.log(`  Frame Analysis: ${asset.frameAnalysis ? "YES" : "NO"}`);
+      if (asset.frameAnalysis) {
+        try {
+          const frames = JSON.parse(asset.frameAnalysis as string);
+          console.log(`  Frames analyzed: ${Array.isArray(frames) ? frames.length : "N/A"}`);
+        } catch (e) {
+          console.log(`  Frame Analysis: Invalid JSON`);
+        }
+      }
+    } else if (asset.type === "image" || asset.type === "chart") {
+      console.log(`  Extracted Text: ${asset.extractedText ? `YES (${asset.extractedText.length} chars)` : "NO"}`);
+    }
   });
 
   // Check documents with mediaAssetId
@@ -38,11 +53,24 @@ async function main() {
       companyId: company.id,
       mediaAssetId: { not: null },
     },
+    include: {
+      mediaAsset: true,
+    },
   });
 
   console.log(`\n📄 Documents linked to media: ${linkedDocs.length}`);
   linkedDocs.forEach((doc) => {
-    console.log(`- ${doc.title} → MediaAsset: ${doc.mediaAssetId}`);
+    console.log(`\n- ${doc.title}`);
+    console.log(`  → MediaAsset: ${doc.mediaAssetId}`);
+    console.log(`  → Content length: ${doc.content.length} chars`);
+    console.log(`  → Source: ${doc.source || "unknown"}`);
+    if (doc.mediaAsset) {
+      console.log(`  → Media Type: ${doc.mediaAsset.type}`);
+      if (doc.mediaAsset.type === "video") {
+        console.log(`  → Video Transcript: ${doc.mediaAsset.transcript?.substring(0, 100) || "N/A"}...`);
+      }
+    }
+    console.log(`  → Content preview: ${doc.content.substring(0, 150)}...`);
   });
 
   // Check total chunks

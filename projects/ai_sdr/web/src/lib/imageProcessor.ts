@@ -20,7 +20,7 @@ export async function processImageAsset(
     throw new Error(`MediaAsset ${mediaAssetId} not found`);
   }
 
-  if (asset.type !== "image" && asset.type !== "chart") {
+  if (asset.type !== "image" && asset.type !== "chart" && asset.type !== "slide") {
     throw new Error(`Asset ${mediaAssetId} is not an image (type: ${asset.type})`);
   }
 
@@ -34,18 +34,13 @@ export async function processImageAsset(
     // Extract text using GPT-4 Vision
     const { text, confidence } = await extractTextFromImage(asset.url);
 
-    // Create RAG document from extracted text
+    // Create RAG document from extracted text, linking to media asset
     const document = await ingestCompanyDoc({
       companyId: asset.companyId,
       title: `${asset.title} (OCR)`,
       source: "ocr",
       content: text,
-    });
-
-    // Link the document to the media asset
-    await prisma.document.update({
-      where: { id: document.id },
-      data: { mediaAssetId: asset.id },
+      mediaAssetId: asset.id, // Link chunks to media asset
     });
 
     // Update media asset with extracted text and status

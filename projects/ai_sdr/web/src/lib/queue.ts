@@ -1,13 +1,14 @@
 import { Queue, Worker, Job } from "bullmq";
 import { processImageAsset } from "./imageProcessor";
 import { processVideoAsset } from "./videoProcessor";
+import { processPDFAsset } from "./pdfProcessor";
 
 // Simple in-memory queue for development (no Redis needed)
 // In production, you'd use Redis with BullMQ
 
 interface QueueJob {
   id: string;
-  type: "process-image" | "process-video";
+  type: "process-image" | "process-video" | "process-pdf";
   mediaAssetId: string;
   companyId: string;
   status: "pending" | "processing" | "completed" | "failed";
@@ -75,6 +76,8 @@ class SimpleQueue {
         await processImageAsset(job.mediaAssetId);
       } else if (job.type === "process-video") {
         await processVideoAsset(job.mediaAssetId);
+      } else if (job.type === "process-pdf") {
+        await processPDFAsset(job.mediaAssetId);
       }
 
       job.status = "completed";
@@ -127,9 +130,12 @@ export const mediaProcessingQueue = new SimpleQueue();
 export async function queueMediaProcessing(
   mediaAssetId: string,
   companyId: string,
-  type: "image" | "video"
+  type: "image" | "video" | "pdf"
 ): Promise<string> {
-  const jobType = type === "image" ? "process-image" : "process-video";
+  const jobType = 
+    type === "image" ? "process-image" :
+    type === "video" ? "process-video" :
+    "process-pdf";
   
   const jobId = await mediaProcessingQueue.add({
     type: jobType,

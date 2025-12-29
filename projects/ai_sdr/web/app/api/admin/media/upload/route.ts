@@ -128,8 +128,8 @@ export async function POST(request: NextRequest) {
 
     // Queue for processing if auto-process enabled
     let jobId: string | undefined;
-    if (autoProcess && (mediaType === "image" || mediaType === "video")) {
-      jobId = await queueMediaProcessing(asset.id, companyId, mediaType as "image" | "video");
+    if (autoProcess && (mediaType === "image" || mediaType === "video" || mediaType === "pdf")) {
+      jobId = await queueMediaProcessing(asset.id, companyId, mediaType as "image" | "video" | "pdf");
       console.log(`[Upload] Queued for processing: job ${jobId}`);
     }
 

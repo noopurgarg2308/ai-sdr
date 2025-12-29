@@ -68,9 +68,11 @@ export async function POST(
             // Add linked visuals from RAG search results
             if (result.linkedVisuals && result.linkedVisuals.length > 0) {
               console.log(`[Chat API] Adding ${result.linkedVisuals.length} linked visuals from RAG`);
+              console.log(`[Chat API] Linked visuals:`, result.linkedVisuals.map((v: any) => ({ type: v.type, title: v.title, url: v.url })));
               visualAssets = [...visualAssets, ...result.linkedVisuals];
             }
             if (result.visualResults && result.visualResults.length > 0) {
+              console.log(`[Chat API] Adding ${result.visualResults.length} visual results`);
               visualAssets = [...visualAssets, ...result.visualResults];
             }
           }
@@ -122,6 +124,11 @@ export async function POST(
       createdAt: new Date().toISOString(),
     };
 
+    console.log(`[Chat API] Total visual assets to return: ${visualAssets.length}`);
+    if (visualAssets.length > 0) {
+      console.log(`[Chat API] Visual assets:`, visualAssets.map((v: any) => ({ type: v.type, title: v.title, url: v.url })));
+    }
+    
     const response: ChatResponse = {
       sessionId,
       reply,

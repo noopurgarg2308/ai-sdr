@@ -189,12 +189,12 @@ export default function CompanyMediaPage() {
           <form onSubmit={handleUpload} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                File * (Images or Videos)
+                File * (Images, Videos, or PDFs)
               </label>
               <input
                 id="file-input"
                 type="file"
-                accept="image/*,video/*"
+                accept="image/*,video/*,application/pdf"
                 onChange={handleFileChange}
                 className="block w-full text-sm text-gray-500
                   file:mr-4 file:py-2 file:px-4
@@ -241,6 +241,7 @@ export default function CompanyMediaPage() {
                   <option value="comparison">Comparison</option>
                   <option value="architecture">Architecture</option>
                   <option value="case-study">Case Study</option>
+                  <option value="company-info">Generic Company Info</option>
                 </select>
               </div>
             </div>
@@ -287,9 +288,10 @@ export default function CompanyMediaPage() {
           <ul className="space-y-2 text-sm text-blue-800">
             <li>✅ <strong>Images</strong>: GPT-4 Vision extracts text, UI elements, and descriptions</li>
             <li>✅ <strong>Videos</strong>: Whisper transcribes audio + Vision analyzes key frames</li>
+            <li>✅ <strong>PDFs</strong>: Text extraction and automatic RAG indexing</li>
             <li>✅ <strong>Auto-indexed</strong>: Content becomes searchable in chat via RAG</li>
             <li>✅ <strong>Smart display</strong>: AI shows visuals when answering questions</li>
-            <li>⏱️ <strong>Processing time</strong>: Images ~5-10s, Videos ~30-60s per minute</li>
+            <li>⏱️ <strong>Processing time</strong>: Images ~5-10s, Videos ~30-60s per minute, PDFs ~10-30s</li>
           </ul>
         </div>
 

@@ -9,6 +9,7 @@ export interface SmartSearchResult {
     score: number;
     documentId: string;
     mediaAssetId?: string;
+    pageNumber?: number;
     timestamp?: string;
   }>;
   visualResults: Array<{
@@ -76,38 +77,76 @@ export async function intelligentSearch(
   });
 
   // 4. Build text results with metadata
+  // IMPORTANT: Only use mediaAssetId from result (rag.ts already resolved PDFs to slides or set to undefined)
+  // Do NOT fall back to document's mediaAssetId - if rag.ts set it to undefined, it means we can't resolve to a specific slide
   const textResults = ragResults.map((result) => {
-    const doc = documents.find((d) => d.id === result.documentId);
+    // Use mediaAssetId from result only - rag.ts has already handled PDF->slide resolution
+    // If result.mediaAssetId is undefined, it means we intentionally couldn't resolve it (no pageNumber)
+    const mediaAssetId = result.mediaAssetId || undefined; // Don't fall back to document's PDF ID
     return {
       content: result.content,
       score: result.score,
       documentId: result.documentId,
-      mediaAssetId: doc?.mediaAssetId || undefined,
+      mediaAssetId,
+      pageNumber: result.pageNumber, // Include page number if available
     };
   });
 
   // 5. Extract linked visuals from RAG results
-  const linkedVisuals = documents
-    .filter((d) => d.mediaAsset)
-    .map((d) => ({
-      type: d.mediaAsset!.type,
-      url: d.mediaAsset!.url,
-      title: d.mediaAsset!.title,
-      description: d.mediaAsset!.description || undefined,
-      thumbnail: d.mediaAsset!.thumbnail || undefined,
-    }));
+  // IMPORTANT: Only include visuals that are NOT PDFs (PDFs should be resolved to slides in rag.ts)
+  // Also prefer mediaAssetId from chunk metadata (more specific) over document's mediaAssetId
+  const linkedVisuals: Array<{
+    type: string;
+    url: string;
+    title: string;
+    description?: string;
+    thumbnail?: string;
+  }> = [];
+  
+  // Use mediaAssetIds from RAG results (which should already be resolved to slides)
+  const mediaAssetIdsFromRAG = new Set(ragResults
+    .filter(r => r.mediaAssetId) // Only results with mediaAssetId
+    .map(r => r.mediaAssetId!));
+  
+  if (mediaAssetIdsFromRAG.size > 0) {
+    const assets = await prisma.mediaAsset.findMany({
+      where: {
+        id: { in: Array.from(mediaAssetIdsFromRAG) },
+        companyId,
+      },
+      select: {
+        id: true,
+        type: true,
+        url: true,
+        title: true,
+        description: true,
+        thumbnail: true,
+      },
+    });
+    
+    // Filter out PDFs - only include slides, images, etc.
+    linkedVisuals.push(...assets
+      .filter(a => a.type !== "pdf")
+      .map(a => ({
+        type: a.type,
+        url: a.url,
+        title: a.title,
+        description: a.description || undefined,
+        thumbnail: a.thumbnail || undefined,
+      })));
+  }
 
-  console.log(`[SmartSearch] Found ${linkedVisuals.length} linked visuals from RAG`);
+  console.log(`[SmartSearch] Found ${linkedVisuals.length} linked visuals from RAG (PDFs filtered out)`);
 
   // 6. Search visual media directly (if requested)
+  // IMPORTANT: Only use direct media search if RAG didn't find any linked visuals
+  // This prevents showing irrelevant fallback visuals when the query doesn't match anything
   let visualResults: any[] = [];
-  if (includeVisuals) {
-    visualResults = await searchMediaAssets({
-      companyId,
-      query,
-      limit: 3,
-    });
-    console.log(`[SmartSearch] Direct media search found ${visualResults.length} visuals`);
+  if (includeVisuals && linkedVisuals.length === 0) {
+    // Only search directly if we have no linked visuals from RAG
+    // This ensures we only show visuals that are actually relevant to the search results
+    console.log(`[SmartSearch] No linked visuals from RAG, skipping direct media search to avoid irrelevant results`);
+    // Don't do direct media search - it would return generic results that don't match the query
   }
 
   return {

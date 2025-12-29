@@ -24,6 +24,14 @@ model Company {
   documents        Document[]
   chunks           Chunk[]
   mediaAssets      MediaAsset[]
+  
+  // Tavus integration fields
+  tavusReplicaId   String?      // Tavus replica ID for video avatar
+  tavusPersonaId    String?      // Tavus persona ID
+  useTavusKB        Boolean      @default(false) // Enable Tavus Knowledge Base
+  useTavusVideo     Boolean      @default(false) // Enable Tavus video avatar
+  searchStrategy    String       @default("parallel") // "parallel" | "smart" | "fallback" | "your-rag-only"
+  tavusKBWeight     Float        @default(0.5) // Weight for Tavus results in merge (0-1)
 }
 
 model DemoClip {

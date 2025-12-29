@@ -1,6 +1,7 @@
 import type { CompanyId, Persona } from "@/types/chat";
 import { searchKnowledge } from "./rag";
 import { intelligentSearch } from "./smartSearch";
+import { hybridSearch } from "./hybridSearch";
 import { getDemoClip } from "./demoMedia";
 import { createMeetingLink } from "./scheduling";
 import { logLeadToCRM, type LeadPayload } from "./crm";
@@ -158,21 +159,227 @@ export async function dispatchToolCall(
 
   switch (name) {
     case "search_knowledge": {
-      // Use intelligent search that includes linked visuals
-      const smartResults = await intelligentSearch(companyId, args.query, {
-        includeVisuals: true,
+      // Use hybrid search that combines Tavus KB + Your Multimodal RAG
+      const hybridResults = await hybridSearch(companyId, args.query, {
         limit: 5,
+        preferFast: false, // Always search both for comprehensive results
       });
       
-      console.log(`[Tools] Smart search found ${smartResults.textResults.length} text results, ${smartResults.linkedVisuals.length} linked visuals`);
+      console.log(
+        `[Tools] Hybrid search found ${hybridResults.results.length} results ` +
+        `(Tavus: ${hybridResults.metadata.tavusResults}, ` +
+        `RAG: ${hybridResults.metadata.ragResults}) ` +
+        `in ${hybridResults.metadata.latency}ms using ${hybridResults.metadata.strategy} strategy`
+      );
+      
+      // Extract media asset IDs from search results
+      // IMPORTANT: Only use top 2 results for slides to avoid showing too many
+      const topResultsForSlides = hybridResults.results.slice(0, 2);
+      const directMediaAssetIds = new Set<string>();
+      
+      // Track which mediaAssetIds come from top results (these are the ones we want to show)
+      const topMediaAssetIds = new Set<string>();
+      
+      topResultsForSlides.forEach((r: any) => {
+        if (r.mediaAssetId) {
+          directMediaAssetIds.add(r.mediaAssetId);
+          topMediaAssetIds.add(r.mediaAssetId);
+        }
+      });
+      
+      // Also collect from all results for debugging
+      hybridResults.results.forEach((r: any) => {
+        if (r.mediaAssetId) {
+          directMediaAssetIds.add(r.mediaAssetId);
+        }
+      });
+      
+      console.log(`[Tools] ========== SLIDE FILTERING DEBUG ==========`);
+      console.log(`[Tools] Query: "${args.query}"`);
+      console.log(`[Tools] Total search results: ${hybridResults.results.length}`);
+      console.log(`[Tools] Top 2 results:`, topResultsForSlides.map((r: any, idx: number) => ({ 
+        index: idx,
+        content: r.content.substring(0, 150), 
+        score: r.score.toFixed(3), 
+        mediaAssetId: r.mediaAssetId, 
+        pageNumber: r.pageNumber,
+        source: r.source
+      })));
+      console.log(`[Tools] All ${hybridResults.results.length} results with mediaAssetIds:`, hybridResults.results.map((r: any, idx: number) => ({
+        index: idx,
+        score: r.score.toFixed(3),
+        mediaAssetId: r.mediaAssetId,
+        pageNumber: r.pageNumber,
+        source: r.source
+      })));
+      console.log(`[Tools] Extracted ${directMediaAssetIds.size} unique media asset IDs from all results:`, Array.from(directMediaAssetIds));
+      console.log(`[Tools] Top ${topMediaAssetIds.size} media asset IDs from top 2 results:`, Array.from(topMediaAssetIds));
+      console.log(`[Tools] Search results with pageNumbers:`, hybridResults.results.filter((r: any) => r.pageNumber).map((r: any) => ({ mediaAssetId: r.mediaAssetId, pageNumber: r.pageNumber, score: r.score.toFixed(3) })));
+      console.log(`[Tools] ===========================================`);
+      
+      // Fetch linked media assets
+      let linkedMediaAssets: any[] = [];
+      
+      // CRITICAL FIX: Only fetch assets from top 2 results, not all results
+      // This ensures different queries show different slides
+      if (topMediaAssetIds.size > 0) {
+        console.log(`[Tools] Fetching assets ONLY from top 2 results:`, Array.from(topMediaAssetIds));
+        
+        const assets = await prisma.mediaAsset.findMany({
+          where: {
+            id: { in: Array.from(topMediaAssetIds) }, // ONLY fetch from top 2 results
+            companyId,
+          },
+          select: {
+            id: true,
+            type: true,
+            url: true,
+            title: true,
+            description: true,
+            thumbnail: true,
+            metadata: true,
+          },
+        });
+        
+        console.log(`[Tools] Fetched ${assets.length} media assets from database (only from top 2 results)`);
+        
+        // Separate PDFs from other assets (slides, images, etc.)
+        const pdfAssets = assets.filter(a => a.type === "pdf");
+        const otherAssets = assets.filter(a => a.type !== "pdf");
+        
+        console.log(`[Tools] Assets breakdown: ${pdfAssets.length} PDFs, ${otherAssets.length} other (slides/images)`);
+        
+        // These assets are already filtered to top 2 results, so we can use them directly
+        const topOtherAssets = otherAssets; // Already filtered by the query above
+        
+        console.log(`[Tools] Filtered to ${topOtherAssets.length} assets from top 2 search results (out of ${otherAssets.length} total)`);
+        
+        // For PDFs: If any top results point to PDFs, we need to resolve to slides
+        // But rag.ts should have already resolved them, so this should be rare
+        const topPdfAssets = pdfAssets.filter(pdf => topMediaAssetIds.has(pdf.id));
+        if (topPdfAssets.length > 0) {
+          console.log(`[Tools] WARNING: Found ${topPdfAssets.length} PDF(s) in top results - rag.ts should have resolved these to slides`);
+          // Try to find slides for these PDFs using pageNumbers from top results
+          const pdfToPageNumbers = new Map<string, Set<number>>();
+          topResultsForSlides.forEach((r: any) => {
+            if (r.mediaAssetId && r.pageNumber && topPdfAssets.some(p => p.id === r.mediaAssetId)) {
+              const pageSet = pdfToPageNumbers.get(r.mediaAssetId) || new Set();
+              pageSet.add(r.pageNumber);
+              pdfToPageNumbers.set(r.mediaAssetId, pageSet);
+            }
+          });
+          
+          if (pdfToPageNumbers.size > 0) {
+            const pdfIdsSet = new Set(topPdfAssets.map(p => p.id));
+            const allSlides = await prisma.mediaAsset.findMany({
+              where: {
+                companyId,
+                type: "slide",
+              },
+              select: {
+                id: true,
+                type: true,
+                url: true,
+                title: true,
+                description: true,
+                thumbnail: true,
+                metadata: true,
+              },
+              take: 1000,
+            });
+            
+            const relevantSlides = allSlides.filter(slide => {
+              if (!slide.metadata) return false;
+              try {
+                const slideMetadata = JSON.parse(slide.metadata as string);
+                const parentPdfId = slideMetadata.parentPdfId;
+                const pageNumber = slideMetadata.pageNumber;
+                
+                if (parentPdfId && pdfIdsSet.has(parentPdfId) && pageNumber) {
+                  const pageSet = pdfToPageNumbers.get(parentPdfId);
+                  return pageSet && pageSet.has(pageNumber);
+                }
+                return false;
+              } catch {
+                return false;
+              }
+            });
+            
+            console.log(`[Tools] Resolved ${relevantSlides.length} slides from ${topPdfAssets.length} PDF(s)`);
+            topOtherAssets.push(...relevantSlides.slice(0, 2).map(slide => ({
+              id: slide.id,
+              type: slide.type,
+              url: slide.url,
+              title: slide.title,
+              description: slide.description,
+              thumbnail: slide.thumbnail,
+              metadata: slide.metadata,
+            })));
+          }
+        }
+        
+        // Add only assets from top 2 results (limit to 2 total)
+        // IMPORTANT: Sort by score to ensure we get the most relevant slides
+        // Match assets to their search result scores
+        const assetsWithScores = topOtherAssets.map(asset => {
+          // Find the search result that matches this asset
+          const matchingResult = topResultsForSlides.find((r: any) => r.mediaAssetId === asset.id);
+          return {
+            asset,
+            score: matchingResult?.score || 0,
+          };
+        });
+        
+        // Sort by score (highest first) and take top 2
+        assetsWithScores.sort((a, b) => b.score - a.score);
+        const assetsToShow = assetsWithScores.slice(0, 2).map(item => item.asset);
+        
+        linkedMediaAssets.push(...assetsToShow.map(asset => ({
+          type: asset.type,
+          url: asset.url,
+          title: asset.title,
+          description: asset.description || undefined,
+          thumbnail: asset.thumbnail || undefined,
+          metadata: asset.metadata ? JSON.parse(asset.metadata as string) : undefined,
+        })));
+        
+        console.log(`[Tools] Adding ${assetsToShow.length} assets from top search results (sorted by score):`, assetsToShow.map(a => ({ type: a.type, title: a.title, url: a.url })));
+        console.log(`[Tools] Asset scores:`, assetsWithScores.map(item => ({ url: item.asset.url, score: item.score.toFixed(3) })));
+        console.log(`[Tools] ========== END SLIDE FILTERING DEBUG ==========`);
+        
+        // Filter out PDFs - we only want to show slides/images, not PDF files
+        linkedMediaAssets = linkedMediaAssets.filter(a => a.type !== "pdf");
+        
+        // Final limit: show at most 2 slides/images total
+        if (linkedMediaAssets.length > 2) {
+          linkedMediaAssets = linkedMediaAssets.slice(0, 2);
+          console.log(`[Tools] Limited to top 2 visual assets total`);
+        }
+        
+        console.log(`[Tools] Found ${linkedMediaAssets.length} linked media assets from search results (PDFs filtered out)`);
+        console.log(`[Tools] Linked media assets:`, linkedMediaAssets.map(a => ({ type: a.type, title: a.title, url: a.url })));
+      } else {
+        console.log(`[Tools] No media asset IDs found in search results`);
+      }
+      
+      // Also filter PDFs from hybridResults.linkedVisuals
+      const filteredHybridVisuals = (hybridResults.linkedVisuals || []).filter((v: any) => v.type !== "pdf");
+      console.log(`[Tools] hybridResults.linkedVisuals: ${hybridResults.linkedVisuals?.length || 0} (${filteredHybridVisuals.length} after filtering PDFs)`);
       
       return {
-        results: smartResults.textResults.map((r) => ({
+        results: hybridResults.results.map((r: any) => ({
           content: r.content,
           score: r.score,
+          source: r.source, // Indicates which KB it came from
+          mediaAssetId: r.mediaAssetId, // Include media asset ID if linked
+          pageNumber: r.pageNumber, // Include page number if available
         })),
-        linkedVisuals: smartResults.linkedVisuals,
-        visualResults: smartResults.visualResults,
+        linkedVisuals: [
+          ...filteredHybridVisuals,
+          ...linkedMediaAssets, // Add media assets linked from search results
+        ],
+        visualResults: hybridResults.visualResults,
+        metadata: hybridResults.metadata, // Include search metadata
       };
     }
 
