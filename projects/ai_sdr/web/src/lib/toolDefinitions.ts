@@ -9,7 +9,7 @@ export const toolDefinitions = [
     function: {
       name: "search_knowledge",
       description:
-        "Search the knowledge base using semantic search. Use this tool to find information about ANY topic - the knowledge base may contain documentation, FAQs, product information, company information, or other relevant content. ALWAYS use this tool first when answering questions, regardless of the topic. Search for any question the user asks.",
+        "Search the knowledge base using semantic search. Use this tool to find information about ANY topic - the knowledge base may contain documentation, FAQs, product information, company information, images, slides, charts, and visual content. ALWAYS use this tool first when answering questions, especially when users ask to see images or visuals. When this tool returns linked visuals (images, slides, charts), they are automatically displayed in a visual section below your response - you don't need to mention them in your text. Just answer the question naturally.",
       parameters: {
         type: "object",
         properties: {
@@ -117,7 +117,7 @@ export const toolDefinitions = [
     function: {
       name: "show_visual",
       description:
-        "Show relevant visual content (images, charts, slides, videos) to help explain a concept or answer a question. Use this when a visual would make the explanation clearer or more engaging. Examples: pricing charts, product screenshots, architecture diagrams, comparison tables, feature illustrations. Note: When search_knowledge returns linked visuals, those are automatically included - you don't need to call this tool separately for those.",
+        "Show relevant visual content (images, charts, slides, videos) to help explain a concept or answer a question. Use this when a visual would make the explanation clearer or more engaging. Examples: pricing charts, product screenshots, architecture diagrams, comparison tables, feature illustrations. Note: When search_knowledge returns linked visuals, those are automatically included - you don't need to call this tool separately for those. IMPORTANT: When visuals are shown, DO NOT describe or list them in your text response - they appear automatically in a visual section.",
       parameters: {
         type: "object",
         properties: {

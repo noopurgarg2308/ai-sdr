@@ -5,9 +5,114 @@ import * as path from "path";
 import { addMediaAsset } from "@/lib/media";
 import { queueMediaProcessing } from "@/lib/queue";
 import { convertToMP4 } from "@/lib/videoProcessor";
+import { prisma } from "@/lib/prisma";
+
+/**
+ * GET /api/admin/media/upload?type=website
+ * Fetch website sources
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const searchParams = request.nextUrl.searchParams;
+    const type = searchParams.get("type");
+
+    if (type === "website") {
+      const websites = await prisma.mediaAsset.findMany({
+        where: { type: "website" },
+        select: {
+          id: true,
+          companyId: true,
+          url: true,
+          title: true,
+          description: true,
+          processingStatus: true,
+          processedAt: true,
+          metadata: true,
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      return NextResponse.json({
+        sources: websites.map(w => ({
+          id: w.id,
+          companyId: w.companyId,
+          url: w.url,
+          title: w.title,
+          description: w.description,
+          processingStatus: w.processingStatus,
+          processedAt: w.processedAt,
+        })),
+      });
+    }
+
+    return NextResponse.json({ sources: [] });
+  } catch (error) {
+    console.error("[Upload GET] Error:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to fetch sources" },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
+    const contentType = request.headers.get("content-type");
+    
+    // Handle JSON request for website sources
+    if (contentType?.includes("application/json")) {
+      const body = await request.json();
+      const { companyId, type, url, title, description, metadata } = body;
+
+      if (type !== "website") {
+        return NextResponse.json(
+          { error: "JSON requests only supported for website type" },
+          { status: 400 }
+        );
+      }
+
+      if (!companyId || !url) {
+        return NextResponse.json(
+          { error: "Missing required fields: companyId, url" },
+          { status: 400 }
+        );
+      }
+
+      // Validate company exists
+      const company = await prisma.company.findUnique({
+        where: { id: companyId },
+      });
+
+      if (!company) {
+        return NextResponse.json(
+          { error: "Company not found" },
+          { status: 404 }
+        );
+      }
+
+      // Create website source
+      const asset = await addMediaAsset({
+        companyId,
+        type: "website",
+        url,
+        title: title || `Website: ${new URL(url).hostname}`,
+        description: description || undefined,
+        metadata: metadata || {},
+      });
+
+      return NextResponse.json({
+        success: true,
+        id: asset.id,
+        asset: {
+          id: asset.id,
+          type: asset.type,
+          url: asset.url,
+          title: asset.title,
+        },
+      }, { status: 201 });
+    }
+
+    // Handle file upload (existing logic)
     const formData = await request.formData();
     const file = formData.get("file") as File;
     const companyId = formData.get("companyId") as string;

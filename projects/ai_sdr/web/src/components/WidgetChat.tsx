@@ -306,12 +306,7 @@ export default function WidgetChat({ companyId }: WidgetChatProps) {
                         console.log(`[Widget] Successfully loaded image: ${asset.url}`);
                       }}
                     />
-                    <div className={`p-3 ${asset.type === "chart" ? "bg-blue-50" : asset.type === "slide" ? "bg-purple-50" : ""}`}>
-                      <p className="font-medium text-sm text-gray-900">{asset.title}</p>
-                      {asset.description && (
-                        <p className="text-xs text-gray-600 mt-1">{asset.description}</p>
-                      )}
-                    </div>
+                    {/* Removed description text - just show the image */}
                   </div>
                 )}
                 

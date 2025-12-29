@@ -426,9 +426,17 @@ export async function searchKnowledge(options: {
     // Small boost for page-level chunks when query explicitly asks for visual content
     // This helps ensure visual queries return slides/images, not just text descriptions
     const hasVisualKeywords = /chart|graph|image|slide|visual|picture|diagram|show me|display/i.test(query);
+    const hasImageLink = chunkMetadata.mediaAssetId && chunkMetadata.sourceType === "website";
+    
     if (hasVisualKeywords && pageNumber) {
       score += 0.15; // Small boost for page-level chunks when query asks for visuals
       console.log(`[RAG] Boosted page-level chunk (has pageNumber) for visual query: +0.15`);
+    }
+    
+    // Also boost website chunks that have linked images when query asks for visuals
+    if (hasVisualKeywords && hasImageLink) {
+      score += 0.15; // Small boost for website chunks with images when query asks for visuals
+      console.log(`[RAG] Boosted website chunk (has image link) for visual query: +0.15`);
     }
     
     // If mediaAssetId points to a PDF and we have a pageNumber, find the specific slide from cache
@@ -441,12 +449,19 @@ export async function searchKnowledge(options: {
         console.log(`[RAG] WARNING: Could not resolve PDF ${mediaAssetId} page ${pageNumber} to slide (not in cache)`);
       }
     } else if (mediaAssetId && !pageNumber) {
-      // If we have a PDF ID but no pageNumber, we can't determine which slide to show
-      // Check if it's actually a PDF (we'll verify this later, but for now set to undefined)
-      // This prevents returning PDF IDs that can't be resolved to slides
-      console.log(`[RAG] Chunk has PDF mediaAssetId ${mediaAssetId} but no pageNumber - cannot resolve to specific slide`);
-      // Don't return PDF ID if we can't resolve it to a slide
-      mediaAssetId = undefined;
+      // Check if mediaAssetId points to a PDF (we need to verify this)
+      // For website chunks, mediaAssetId might point to an image (which is fine)
+      // For PDF chunks, if it's a PDF without pageNumber, we can't show a slide
+      // We'll check the asset type later in tools.ts, but for now keep it if it's from a website
+      if (chunkMetadata.sourceType === "website") {
+        // Website chunks can have image mediaAssetIds - keep them
+        console.log(`[RAG] Website chunk with image mediaAssetId: ${mediaAssetId}`);
+      } else {
+        // For PDFs without pageNumber, we can't determine which slide to show
+        console.log(`[RAG] Chunk has PDF mediaAssetId ${mediaAssetId} but no pageNumber - cannot resolve to specific slide`);
+        // Don't return PDF ID if we can't resolve it to a slide
+        mediaAssetId = undefined;
+      }
     }
     
     return {

@@ -52,7 +52,7 @@ model Document {
   companyId    String
   company      Company     @relation(fields: [companyId], references: [id])
   title        String
-  source       String?     // "manual", "ocr", "whisper", "pdf_extract", etc.
+  source       String?     // "manual", "ocr", "whisper", "pdf_extract", "pdf_page_extract", "website_page", etc.
   content      String      // Full extracted text
   createdAt    DateTime    @default(now())
   chunks       Chunk[]
@@ -60,9 +60,14 @@ model Document {
   // Link to source media asset (if this doc came from image/video OCR)
   mediaAssetId String?
   mediaAsset   MediaAsset? @relation(fields: [mediaAssetId], references: [id])
+  
+  // Website-specific fields (nullable for backwards compatibility)
+  url          String?     // URL of the webpage (for website pages)
+  headingsPath String?     // JSON array: ["Home", "Products", "Pricing"] - breadcrumb path
 
   @@index([companyId])
   @@index([mediaAssetId])
+  @@index([url])
 }
 
 model Chunk {
@@ -93,14 +98,14 @@ model MediaAsset {
   id              String     @id @default(cuid())
   companyId       String
   company         Company    @relation(fields: [companyId], references: [id])
-  type            String     // "image", "video", "pdf", "slide", "chart", "gif"
+  type            String     // "image", "video", "pdf", "slide", "chart", "gif", "website"
   url             String
   title           String
   description     String?
   category        String?    // "product", "pricing", "comparison", "demo", "case-study"
   tags            String?    // JSON array of keywords
   thumbnail       String?    // For videos/PDFs
-  metadata        String?    // JSON: {width, height, duration, pages, etc}
+  metadata        String?    // JSON: {width, height, duration, pages, crawlConfig, etc}
   
   // Processing fields
   extractedText   String?    // OCR text from image or combined video transcript

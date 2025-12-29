@@ -2,13 +2,14 @@ import { Queue, Worker, Job } from "bullmq";
 import { processImageAsset } from "./imageProcessor";
 import { processVideoAsset } from "./videoProcessor";
 import { processPDFAsset } from "./pdfProcessor";
+import { processWebsiteAsset } from "./websiteProcessor";
 
 // Simple in-memory queue for development (no Redis needed)
 // In production, you'd use Redis with BullMQ
 
 interface QueueJob {
   id: string;
-  type: "process-image" | "process-video" | "process-pdf";
+  type: "process-image" | "process-video" | "process-pdf" | "process-website";
   mediaAssetId: string;
   companyId: string;
   status: "pending" | "processing" | "completed" | "failed";
@@ -16,6 +17,13 @@ interface QueueJob {
   error?: string;
   createdAt: Date;
   completedAt?: Date;
+  options?: {
+    maxPages?: number;
+    maxDepth?: number;
+    includeImages?: boolean;
+    forceReindex?: boolean;
+    dryRun?: boolean;
+  };
 }
 
 class SimpleQueue {
@@ -78,6 +86,8 @@ class SimpleQueue {
         await processVideoAsset(job.mediaAssetId);
       } else if (job.type === "process-pdf") {
         await processPDFAsset(job.mediaAssetId);
+      } else if (job.type === "process-website") {
+        await processWebsiteAsset(job.mediaAssetId, job.options || {});
       }
 
       job.status = "completed";
@@ -130,17 +140,26 @@ export const mediaProcessingQueue = new SimpleQueue();
 export async function queueMediaProcessing(
   mediaAssetId: string,
   companyId: string,
-  type: "image" | "video" | "pdf"
+  type: "image" | "video" | "pdf" | "website",
+  options?: {
+    maxPages?: number;
+    maxDepth?: number;
+    includeImages?: boolean;
+    forceReindex?: boolean;
+    dryRun?: boolean;
+  }
 ): Promise<string> {
   const jobType = 
     type === "image" ? "process-image" :
     type === "video" ? "process-video" :
+    type === "website" ? "process-website" :
     "process-pdf";
   
   const jobId = await mediaProcessingQueue.add({
     type: jobType,
     mediaAssetId,
     companyId,
+    options,
   });
 
   console.log(`[Queue] Queued ${type} processing: job ${jobId}`);

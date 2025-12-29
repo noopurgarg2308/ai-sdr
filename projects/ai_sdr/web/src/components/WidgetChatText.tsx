@@ -1,7 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import type { ChatMessage } from "@/types/chat";
+
+// Timeout for image loading (5 seconds)
+const IMAGE_LOAD_TIMEOUT = 5000;
 
 interface WidgetChatProps {
   companyId: string;
@@ -28,6 +31,8 @@ export default function WidgetChatText({ companyId }: WidgetChatProps) {
     description?: string;
     thumbnail?: string;
   }>>([]);
+  const [failedImageUrls, setFailedImageUrls] = useState<string[]>([]);
+  const [loadedImageUrls, setLoadedImageUrls] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -37,6 +42,96 @@ export default function WidgetChatText({ companyId }: WidgetChatProps) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Clear image state when visual assets change (new query = fresh start)
+  useEffect(() => {
+    setFailedImageUrls([]);
+    setLoadedImageUrls(new Set());
+  }, [visualAssets.length]);
+
+  // Filter out failed images - only show images that haven't failed
+  const validVisualAssets = useMemo(() => {
+    const failedSet = new Set(failedImageUrls);
+    const filtered = visualAssets.filter(asset => {
+      // For images/charts/slides: completely filter out if failed
+      if (asset.type === "image" || asset.type === "chart" || asset.type === "slide") {
+        if (failedSet.has(asset.url)) {
+          console.log(`[WidgetText] Filtering out failed image: ${asset.url}`);
+          return false;
+        }
+      }
+      return true;
+    });
+    console.log(`[WidgetText] Filtered assets: ${filtered.length} out of ${visualAssets.length} (${failedImageUrls.length} failed)`);
+    return filtered;
+  }, [visualAssets, failedImageUrls]);
+
+  // Periodic check for blank images (runs every 1 second to catch images that load but are blank)
+  useEffect(() => {
+    if (validVisualAssets.length === 0) return;
+    
+    // Track which images we've seen
+    const seenImages = new Set<string>();
+    
+    const checkInterval = setInterval(() => {
+      // Find all image elements in the visual assets section
+      const imageElements = document.querySelectorAll('[data-asset-url] img');
+      console.log(`[WidgetText] 🔍 Periodic check: Found ${imageElements.length} image elements`);
+      
+      imageElements.forEach((imgEl) => {
+        const img = imgEl as HTMLImageElement;
+        const cardContainer = img.closest('[data-asset-url]') as HTMLElement;
+        const assetUrl = cardContainer?.getAttribute('data-asset-url');
+        
+        if (!assetUrl) return;
+        
+        // Track that we've seen this image
+        seenImages.add(assetUrl);
+        
+        // Skip if already marked as failed or loaded
+        if (failedImageUrls.includes(assetUrl)) {
+          return;
+        }
+        if (loadedImageUrls.has(assetUrl)) {
+          return;
+        }
+        
+        // Check if image is blank (has 0 dimensions) or failed to load
+        if (img.complete) {
+          if (img.naturalWidth === 0 || img.naturalHeight === 0) {
+            console.warn(`[WidgetText] 🔍 Periodic check: Found blank image (0 dimensions): ${assetUrl} (${img.naturalWidth}x${img.naturalHeight})`);
+            img.dispatchEvent(new Event('error'));
+          } else {
+            // Image is complete and has dimensions but onLoad didn't fire - mark as loaded
+            console.log(`[WidgetText] 🔍 Periodic check: Image loaded but onLoad didn't fire: ${assetUrl} (${img.naturalWidth}x${img.naturalHeight})`);
+            img.dispatchEvent(new Event('load'));
+          }
+        } else {
+          // Image not complete - check if it's been loading too long
+          const loadStart = (img as any).__loadStartTime || Date.now();
+          (img as any).__loadStartTime = loadStart;
+          const loadTime = Date.now() - loadStart;
+          
+          if (loadTime > 2000) { // Reduced to 2 seconds
+            console.warn(`[WidgetText] 🔍 Periodic check: Image taking too long (${loadTime}ms): ${assetUrl}`);
+            img.dispatchEvent(new Event('error'));
+          }
+        }
+      });
+      
+      // Check for images that should be there but aren't in the DOM
+      validVisualAssets.forEach(asset => {
+        if ((asset.type === "image" || asset.type === "chart" || asset.type === "slide") && 
+            !seenImages.has(asset.url) && 
+            !failedImageUrls.includes(asset.url) && 
+            !loadedImageUrls.has(asset.url)) {
+          console.warn(`[WidgetText] 🔍 Periodic check: Image not found in DOM: ${asset.url}`);
+        }
+      });
+    }, 1000); // Check every 1 second (more frequent)
+    
+    return () => clearInterval(checkInterval);
+  }, [validVisualAssets, failedImageUrls, loadedImageUrls]);
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -203,42 +298,133 @@ export default function WidgetChatText({ companyId }: WidgetChatProps) {
         )}
 
         {/* Visual Assets */}
-        {visualAssets.length > 0 && (
+        {validVisualAssets.length > 0 && (
           <div className="border-t p-4 bg-gray-50">
             <h3 className="font-semibold mb-3 text-gray-900">Visual Content</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[600px] overflow-y-auto">
-            {visualAssets.map((asset, index) => {
-              console.log(`[WidgetText] Rendering visual asset ${index}:`, asset);
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[600px] overflow-y-auto" style={{ gridAutoRows: 'min-content' }}>
+            {validVisualAssets.map((asset, index) => {
+              // Double-check: don't render if somehow in failed list (shouldn't happen due to filter, but safety check)
+              if ((asset.type === "image" || asset.type === "chart" || asset.type === "slide") && failedImageUrls.includes(asset.url)) {
+                console.warn(`[WidgetText] WARNING: Asset in validVisualAssets but also in failedImageUrls: ${asset.url}`);
+                return null;
+              }
+              
               return (
-              <div key={index} className="bg-white rounded-lg shadow-sm overflow-hidden">
+              <div 
+                key={`${asset.url}-${index}`} 
+                className="bg-white rounded-lg shadow-sm overflow-hidden"
+                data-asset-url={asset.url}
+                data-asset-type={asset.type}
+              >
                 {/* Images, charts, and slides are all displayed as images */}
                 {(asset.type === "image" || asset.type === "chart" || asset.type === "slide") && (
-                  <div>
-                    <img 
-                      src={asset.url} 
-                      alt={asset.title}
-                      className="w-full h-auto"
-                      onError={(e) => {
-                        console.error(`[WidgetText] Failed to load image: ${asset.url}`, e);
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        // Show error message
-                        const errorDiv = document.createElement('div');
-                        errorDiv.className = 'p-4 bg-red-50 text-red-600 text-sm';
-                        errorDiv.textContent = `${asset.type} failed to load: ${asset.title}`;
-                        target.parentElement?.appendChild(errorDiv);
-                      }}
-                      onLoad={() => {
-                        console.log(`[WidgetText] Successfully loaded ${asset.type}: ${asset.url}`);
-                      }}
-                    />
-                    <div className={`p-3 ${asset.type === "chart" ? "bg-blue-50" : asset.type === "slide" ? "bg-purple-50" : ""}`}>
-                      <p className="font-medium text-sm text-gray-900">{asset.title}</p>
-                      {asset.description && (
-                        <p className="text-xs text-gray-600 mt-1">{asset.description}</p>
-                      )}
-                    </div>
-                  </div>
+                  <img 
+                    src={asset.url} 
+                    alt={asset.title}
+                    className="w-full h-auto"
+                    style={{ display: 'block' }}
+                    ref={(img) => {
+                      if (img && !loadedImageUrls.has(asset.url) && !failedImageUrls.includes(asset.url)) {
+                        // Check if image is already broken (loaded but has 0 dimensions)
+                        if (img.complete && (img.naturalWidth === 0 || img.naturalHeight === 0)) {
+                          console.warn(`[WidgetText] ⚠️ Image has 0 dimensions (broken): ${asset.url}`);
+                          img.dispatchEvent(new Event('error'));
+                          return;
+                        }
+                        
+                        // Quick check after a short delay to catch blank images early
+                        const quickCheckId = setTimeout(() => {
+                          if (!loadedImageUrls.has(asset.url) && img.complete) {
+                            if (img.naturalWidth === 0 || img.naturalHeight === 0) {
+                              console.warn(`[WidgetText] ⚠️ Quick check: Image is blank (0 dimensions): ${asset.url}`);
+                              img.dispatchEvent(new Event('error'));
+                            }
+                          }
+                        }, 1000); // Check after 1 second
+                        
+                        // Set timeout to mark as failed if not loaded within time limit
+                        const timeoutId = setTimeout(() => {
+                          if (!loadedImageUrls.has(asset.url)) {
+                            // Check if image is still not loaded or is broken
+                            if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0) {
+                              console.warn(`[WidgetText] ⏱️ Image load timeout or broken: ${asset.url} (complete: ${img.complete}, size: ${img.naturalWidth}x${img.naturalHeight})`);
+                              img.dispatchEvent(new Event('error'));
+                            }
+                          }
+                        }, IMAGE_LOAD_TIMEOUT);
+                        
+                        // Clear timeouts if image loads successfully
+                        img.addEventListener('load', () => {
+                          clearTimeout(timeoutId);
+                          clearTimeout(quickCheckId);
+                          // Double-check dimensions on load
+                          if (img.naturalWidth === 0 || img.naturalHeight === 0) {
+                            console.warn(`[WidgetText] ⚠️ Image loaded but has 0 dimensions: ${asset.url}`);
+                            img.dispatchEvent(new Event('error'));
+                          }
+                        }, { once: true });
+                        img.addEventListener('error', () => {
+                          clearTimeout(timeoutId);
+                          clearTimeout(quickCheckId);
+                        }, { once: true });
+                      }
+                    }}
+                    onError={(e) => {
+                      console.error(`[WidgetText] ❌ FAILED to load image: ${asset.url}`, e);
+                      const target = e.target as HTMLImageElement;
+                      
+                      // Immediately hide the image
+                      target.style.display = 'none';
+                      target.style.opacity = '0';
+                      target.style.visibility = 'hidden';
+                      
+                      // Find and hide/remove the entire card container IMMEDIATELY
+                      const cardContainer = target.closest('[data-asset-url]') as HTMLElement;
+                      if (cardContainer) {
+                        console.log(`[WidgetText] 🗑️ Removing card container immediately: ${asset.url}`);
+                        // Remove from DOM immediately (no delay)
+                        if (cardContainer.parentNode) {
+                          cardContainer.remove();
+                          console.log(`[WidgetText] 🗑️ Removed from DOM: ${asset.url}`);
+                        } else {
+                          // Fallback: hide if parent not found
+                          cardContainer.style.display = 'none';
+                          cardContainer.style.visibility = 'hidden';
+                          cardContainer.style.height = '0';
+                          cardContainer.style.margin = '0';
+                          cardContainer.style.padding = '0';
+                          cardContainer.style.overflow = 'hidden';
+                        }
+                      }
+                      
+                      // Update state to filter it out on next render
+                      setFailedImageUrls(prev => {
+                        if (prev.includes(asset.url)) {
+                          return prev;
+                        }
+                        const updated = [...prev, asset.url];
+                        console.log(`[WidgetText] ✅ Added to failed list. Total failed: ${updated.length}`);
+                        return updated;
+                      });
+                    }}
+                    onLoad={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      // Check if image actually has valid dimensions
+                      if (target.naturalWidth === 0 || target.naturalHeight === 0) {
+                        console.warn(`[WidgetText] ⚠️ Image loaded but has 0 dimensions (blank): ${asset.url}`);
+                        // Trigger error handler to remove it
+                        target.dispatchEvent(new Event('error'));
+                        return;
+                      }
+                      console.log(`[WidgetText] ✅ Successfully loaded: ${asset.type} - ${asset.url} (${target.naturalWidth}x${target.naturalHeight})`);
+                      // Ensure image is visible
+                      target.style.display = 'block';
+                      target.style.opacity = '1';
+                      target.style.visibility = 'visible';
+                      setLoadedImageUrls(prev => new Set(prev).add(asset.url));
+                      setFailedImageUrls(prev => prev.filter(url => url !== asset.url));
+                    }}
+                  />
                 )}
                 
                 {asset.type === "video" && (

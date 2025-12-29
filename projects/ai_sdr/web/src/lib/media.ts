@@ -1,7 +1,7 @@
 import { prisma } from "./prisma";
 import type { CompanyId } from "@/types/chat";
 
-export type MediaType = "image" | "video" | "pdf" | "slide" | "chart" | "gif";
+export type MediaType = "image" | "video" | "pdf" | "slide" | "chart" | "gif" | "website";
 export type MediaCategory = "product" | "pricing" | "comparison" | "demo" | "case-study" | "feature" | "architecture" | "company-info";
 
 export interface MediaAsset {
