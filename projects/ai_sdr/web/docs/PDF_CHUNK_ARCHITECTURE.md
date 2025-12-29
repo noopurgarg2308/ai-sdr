@@ -176,7 +176,7 @@ When a PDF is uploaded, it goes through two parallel processing paths:
 
 ---
 
-### Why No Artificial Boost for Page-Level Chunks?
+### Why No Artificial Boost for Page-Level Chunks? (With Exception)
 
 **Principle:** Relevancy should be determined by semantic similarity, not by whether chunks have slides.
 
@@ -185,7 +185,12 @@ When a PDF is uploaded, it goes through two parallel processing paths:
 - If page-level chunk is more relevant → it naturally ranks higher → slide is shown
 - If main document chunk is more relevant → it ranks higher (but can't show slide)
 
-**Result:** Organic relevancy - slides appear when content is relevant, not because of artificial boosting.
+**Exception for Visual Queries:**
+- When queries explicitly ask for visual content (charts, graphs, images), page-level chunks get a small boost (+0.15)
+- This ensures visual queries return actual slides, not just text descriptions
+- The boost is small enough to maintain organic relevancy while helping visual queries
+
+**Result:** Organic relevancy - slides appear when content is relevant, with a small boost for visual queries to ensure slides are returned.
 
 ---
 
@@ -226,13 +231,45 @@ When a PDF is uploaded, it goes through two parallel processing paths:
 
 ---
 
+## Visual Query Boost
+
+When queries explicitly ask for visual content (charts, graphs, images, slides), the system applies a small boost (+0.15) to page-level chunks that can link to slides. This ensures visual queries return actual slides/images, not just text descriptions.
+
+**Visual keywords that trigger the boost:**
+- "chart", "graph", "image", "slide", "visual", "picture", "diagram"
+- "show me", "display"
+
+**Example:**
+- Query: "Show me the revenue growth chart from Q1 2024"
+- Page-level chunks with `pageNumber` get +0.15 boost
+- This helps them rank higher than main document chunks (which can't show slides)
+
+---
+
+## Deduplication
+
+The system ensures each slide appears only once, even if multiple search results reference the same slide.
+
+**Backend deduplication (`src/lib/tools.ts`):**
+- Deduplicates assets by `id` before mapping to scores
+- Uses highest score when multiple results reference the same asset
+
+**Frontend deduplication (`src/components/WidgetChatText.tsx`):**
+- Deduplicates visual assets by `url` as a safety measure
+- Prevents duplicates from reaching the UI
+
+**Result:** Each slide appears exactly once, regardless of how many search results reference it.
+
+---
+
 ## Testing
 
 To test the system:
 
-1. **Query for specific content:** "Show me the revenue growth chart from Q1 2024"
+1. **Query for specific visual content:** "Show me the revenue growth chart from Q1 2024"
    - Should find relevant Q1 2024 chunks
-   - Should show specific slide(s) if page-level chunks rank high
+   - Should show specific slide(s) (page-level chunks get visual boost)
+   - Each slide should appear only once (no duplicates)
 
 2. **Query for general content:** "What were Airbnb's financial results in Q1 2024?"
    - Should find relevant chunks (might be main document or page-level)
@@ -240,4 +277,6 @@ To test the system:
 
 3. **Check logs:**
    - `[RAG] ========== SEARCH RESULTS DEBUG ==========` - Shows which chunks are returned
+   - `[RAG] Boosted page-level chunk (has pageNumber) for visual query: +0.15` - Confirms visual boost
    - `[Tools] ========== SLIDE FILTERING DEBUG ==========` - Shows which slides are selected
+   - `[Tools] Deduplicated X unique assets` - Confirms deduplication

@@ -113,9 +113,22 @@ export default function WidgetChatText({ companyId }: WidgetChatProps) {
         console.log("[Text Mode] No visual assets in response");
       }
       
+      // Deduplicate visual assets by URL (safety measure in case duplicates make it through)
+      const uniqueVisualAssets = new Map<string, typeof newVisualAssets[0]>();
+      newVisualAssets.forEach(asset => {
+        if (!uniqueVisualAssets.has(asset.url)) {
+          uniqueVisualAssets.set(asset.url, asset);
+        }
+      });
+      const deduplicatedVisualAssets = Array.from(uniqueVisualAssets.values());
+      
+      if (deduplicatedVisualAssets.length < newVisualAssets.length) {
+        console.log(`[Text Mode] Deduplicated ${deduplicatedVisualAssets.length} unique visual assets (removed ${newVisualAssets.length - deduplicatedVisualAssets.length} duplicates)`);
+      }
+      
       // Replace visual assets (don't accumulate across messages)
-      console.log(`[Text Mode] Setting ${newVisualAssets.length} visual assets`);
-      setVisualAssets(newVisualAssets);
+      console.log(`[Text Mode] Setting ${deduplicatedVisualAssets.length} visual assets`);
+      setVisualAssets(deduplicatedVisualAssets);
 
       setMessages((prev) => [...prev, data.reply]);
     } catch (error) {

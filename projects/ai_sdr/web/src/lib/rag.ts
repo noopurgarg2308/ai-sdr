@@ -423,6 +423,14 @@ export async function searchKnowledge(options: {
     let mediaAssetId = chunkMetadata.mediaAssetId || chunk.document.mediaAssetId || undefined;
     const pageNumber = chunkMetadata.pageNumber || undefined;
     
+    // Small boost for page-level chunks when query explicitly asks for visual content
+    // This helps ensure visual queries return slides/images, not just text descriptions
+    const hasVisualKeywords = /chart|graph|image|slide|visual|picture|diagram|show me|display/i.test(query);
+    if (hasVisualKeywords && pageNumber) {
+      score += 0.15; // Small boost for page-level chunks when query asks for visuals
+      console.log(`[RAG] Boosted page-level chunk (has pageNumber) for visual query: +0.15`);
+    }
+    
     // If mediaAssetId points to a PDF and we have a pageNumber, find the specific slide from cache
     if (mediaAssetId && pageNumber) {
       const pdfSlideMap = slideCache.get(mediaAssetId);

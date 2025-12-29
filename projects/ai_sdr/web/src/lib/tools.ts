@@ -318,15 +318,29 @@ export async function dispatchToolCall(
           }
         }
         
+        // Deduplicate assets by ID (same slide might appear in multiple search results)
+        const uniqueAssets = new Map<string, typeof topOtherAssets[0]>();
+        topOtherAssets.forEach(asset => {
+          if (!uniqueAssets.has(asset.id)) {
+            uniqueAssets.set(asset.id, asset);
+          }
+        });
+        const deduplicatedAssets = Array.from(uniqueAssets.values());
+        
+        console.log(`[Tools] Deduplicated ${deduplicatedAssets.length} unique assets from ${topOtherAssets.length} total (removed ${topOtherAssets.length - deduplicatedAssets.length} duplicates)`);
+        
         // Add only assets from top 2 results (limit to 2 total)
         // IMPORTANT: Sort by score to ensure we get the most relevant slides
         // Match assets to their search result scores
-        const assetsWithScores = topOtherAssets.map(asset => {
-          // Find the search result that matches this asset
-          const matchingResult = topResultsForSlides.find((r: any) => r.mediaAssetId === asset.id);
+        const assetsWithScores = deduplicatedAssets.map(asset => {
+          // Find the search result that matches this asset (use highest score if multiple matches)
+          const matchingResults = topResultsForSlides.filter((r: any) => r.mediaAssetId === asset.id);
+          const highestScore = matchingResults.length > 0 
+            ? Math.max(...matchingResults.map((r: any) => r.score))
+            : 0;
           return {
             asset,
-            score: matchingResult?.score || 0,
+            score: highestScore,
           };
         });
         
