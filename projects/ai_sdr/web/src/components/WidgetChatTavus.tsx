@@ -23,7 +23,7 @@ export default function WidgetChatTavus({ companyId }: WidgetChatTavusProps) {
   const [videoUrl, setVideoUrl] = useState<string>();
   const [sessionId, setSessionId] = useState<string>();
   
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<HTMLDivElement>(null); // Daily.co needs a container div, not video element
   const dailyRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -105,6 +105,32 @@ export default function WidgetChatTavus({ companyId }: WidgetChatTavusProps) {
         setIsLoading(false);
       });
 
+      // Listen for custom events from Tavus (if they send them via Daily.co)
+      // Tavus may send events through Daily.co's custom event system
+      daily.on("custom-event", (event: any) => {
+        console.log("[Tavus] Custom event:", event);
+        if (event && event.data) {
+          handleTavusMessage(event.data);
+        }
+      });
+
+      // Listen for app messages (Tavus might use this for transcripts/function calls)
+      daily.on("app-message", (event: any) => {
+        console.log("[Tavus] App message:", event);
+        if (event && event.data) {
+          handleTavusMessage(event.data);
+        }
+      });
+
+      // Listen for participant events (Tavus avatar might send messages this way)
+      daily.on("participant-joined", (event: any) => {
+        console.log("[Tavus] Participant joined:", event);
+      });
+
+      daily.on("participant-left", (event: any) => {
+        console.log("[Tavus] Participant left:", event);
+      });
+
       // Join the room
       await daily.join({ url: roomUrl });
     } catch (error: any) {
@@ -176,30 +202,31 @@ export default function WidgetChatTavus({ companyId }: WidgetChatTavusProps) {
 
   const handleFunctionCall = async (functionCall: any) => {
     // Execute function call via your API
+    // Note: Tavus handles function calls via HTTP callbacks (callbackUrl)
+    // The result is automatically sent back to Tavus via the callback endpoint
     try {
+      console.log("[Tavus] Function call received:", functionCall);
+      
       const response = await fetch(`/api/chat/${companyId}/tool`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: functionCall.name,
-          arguments: functionCall.arguments,
+          arguments: functionCall.arguments || functionCall.args || {},
         }),
       });
 
       const result = await response.json();
+      console.log("[Tavus] Function call result:", result);
 
-      // Send result back to Tavus
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(
-          JSON.stringify({
-            type: "function_call_result",
-            function_call_id: functionCall.id,
-            result,
-          })
-        );
-      }
+      // Note: Function call results are sent back to Tavus via the callback endpoint
+      // (/api/tavus/callback) which Tavus calls automatically
+      // No need to send via WebSocket here
+      
+      return result;
     } catch (error) {
       console.error("[Tavus] Function call error:", error);
+      throw error;
     }
   };
 
