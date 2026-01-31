@@ -717,6 +717,15 @@ NODE_ENV=development
 }
 ```
 
+### Tavus CVI & Persona
+
+For the **video avatar** (Tavus CVI), each company that uses it has:
+
+- **`tavusReplicaId`** – Which avatar (face/voice) to use.
+- **`tavusPersonaId`** – Which **Tavus Persona** (instructions + tools) to use. A Persona is the “brain”: system prompt (e.g. “always use search_knowledge for company questions”) and LLM tools (`search_knowledge`, `show_visual`, etc.). When the avatar calls a tool, Tavus POSTs to our `callback_url` and we run the tool (e.g. RAG).
+
+**One persona per customer:** Each company has one `tavusPersonaId` in the DB. If it’s null, the session API creates a persona on first “Start Video Chat” (company-specific prompt + tools) and saves the ID. See [Tavus CVI Status Check](TAVUS_STATUS_CHECK.md) for full details.
+
 ---
 
 ## Troubleshooting

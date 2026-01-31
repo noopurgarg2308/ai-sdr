@@ -15,8 +15,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // In production, you'd generate an ephemeral token here
-    // For now, we'll return the API key (only do this server-side!)
+    // In production, use OpenAI Realtime ephemeral tokens (realtime-sessions API)
+    // so the client never sees your API key. For dev, we return the key server-side only.
     const apiKey = process.env.OPENAI_API_KEY;
 
     if (!apiKey) {

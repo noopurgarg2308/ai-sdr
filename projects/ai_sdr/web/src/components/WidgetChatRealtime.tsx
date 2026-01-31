@@ -83,8 +83,10 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
             ...(typeof company.config === 'object' ? company.config : {}),
           };
           instructions = `You are an AI SDR for ${company.displayName}. ${company.shortDescription || ''}
-          
-Be conversational and helpful. Ask about their role and needs. Use your tools to search knowledge, show visual content (images, charts, diagrams), show demos, or book meetings when appropriate. Always use visuals to enhance your explanations.`;
+
+Be conversational and helpful. Ask about their role and needs.
+
+CRITICAL: Always use the search_knowledge tool when answering questions about ${company.displayName}, its products, pricing, features, or documentation. Never rely on general knowledge for company-specific questions. Use show_visual, get_demo_clip, create_meeting_link, or log_lead when appropriate. When search_knowledge returns linked visuals, they are shown automatically—do not describe them in your reply.`;
         }
       }
 
@@ -163,13 +165,13 @@ Be conversational and helpful. Ask about their role and needs. Use your tools to
           if (name === "show_visual" && result) {
             console.log("[Realtime] Show visual result:", result);
             if (result.visuals && result.visuals.length > 0) {
-              console.log("[Realtime] Adding", result.visuals.length, "visual assets");
               setVisualAssets((prev) => [...prev, ...result.visuals]);
-            } else {
-              console.warn("[Realtime] No visuals in result:", result);
             }
           }
-            
+          if (name === "search_knowledge" && result?.linkedVisuals?.length) {
+            setVisualAssets((prev) => [...prev, ...result.linkedVisuals]);
+          }
+
             return result;
           } catch (error) {
             console.error("[Realtime] Tool execution error:", error);
@@ -208,6 +210,8 @@ Be conversational and helpful. Ask about their role and needs. Use your tools to
 
   const stopConversation = () => {
     if (realtimeClientRef.current) {
+      // With server_vad enabled, the server already commits when it detects silence.
+      // Sending commit again here causes "buffer too small" because the buffer is already empty.
       realtimeClientRef.current.stopRecording();
       setIsRecording(false);
     }
@@ -263,10 +267,10 @@ Be conversational and helpful. Ask about their role and needs. Use your tools to
         
         {/* Status indicators */}
         {isRecording && (
-          <div className="flex justify-center">
+          <div className="flex justify-center flex-col items-center gap-1">
             <div className="bg-red-100 text-red-700 rounded-lg px-4 py-2 text-sm">
               <span className="inline-block w-2 h-2 bg-red-600 rounded-full mr-2 animate-pulse"></span>
-              Listening...
+              Listening... Speak, then click &quot;Stop Speaking&quot; to get a response.
             </div>
           </div>
         )}

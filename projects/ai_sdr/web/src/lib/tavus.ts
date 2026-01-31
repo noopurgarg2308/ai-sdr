@@ -134,14 +134,20 @@ export class TavusClient {
         requestBody.callback_url = `${baseUrl}/api/tavus/callback`;
       }
 
-      // Add instructions if provided (might be used for system prompt)
+      // NOTE: Tavus API does NOT accept 'instructions' or 'tools' directly in conversation creation.
+      // These must be configured via a Persona (persona_id).
+      // If you need custom instructions/tools, create a Persona in the Tavus dashboard first,
+      // then reference it via persona_id.
+      // 
+      // For now, we skip these fields to avoid API errors.
+      // The replica's default behavior will be used.
+      
+      // Log if instructions were provided but won't be sent
       if (options.instructions) {
-        requestBody.instructions = options.instructions;
+        console.log("[Tavus] Note: instructions provided but Tavus API requires Persona for custom instructions");
       }
-
-      // Tools might need to be configured via persona, but let's try including them
       if (options.tools && options.tools.length > 0) {
-        requestBody.tools = options.tools;
+        console.log("[Tavus] Note: tools provided but Tavus API requires Persona for custom tools");
       }
 
       console.log("[Tavus] Creating conversation with:", {
@@ -162,6 +168,11 @@ export class TavusClient {
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`[Tavus] CVI session error: ${response.status} ${errorText}`);
+        if (response.status === 402) {
+          throw new Error(
+            "Tavus returned 402 Payment Required. Check your Tavus account billing and CVI usage limits at platform.tavus.io."
+          );
+        }
         throw new Error(`Tavus API error: ${response.status}`);
       }
 
@@ -174,6 +185,57 @@ export class TavusClient {
       };
     } catch (error) {
       console.error("[Tavus] CVI session creation error:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a Persona with system prompt and LLM tools (for RAG / search_knowledge).
+   * Required for the video avatar to use our knowledge base instead of generic knowledge.
+   * See: https://docs.tavus.io/api-reference/personas/create-persona
+   */
+  async createPersona(options: {
+    personaName: string;
+    systemPrompt: string;
+    tools?: Array<{ type: "function"; function: { name: string; description: string; parameters: object } }>;
+    defaultReplicaId?: string;
+  }): Promise<{ personaId: string; personaName: string }> {
+    try {
+      const body: Record<string, unknown> = {
+        persona_name: options.personaName,
+        system_prompt: options.systemPrompt,
+        pipeline_mode: "full",
+      };
+      if (options.defaultReplicaId) {
+        body.default_replica_id = options.defaultReplicaId;
+      }
+      if (options.tools && options.tools.length > 0) {
+        body.layers = {
+          llm: {
+            tools: options.tools,
+          },
+        };
+      }
+
+      const response = await fetch(`${this.baseUrl}/personas`, {
+        method: "POST",
+        headers: this.getHeaders(),
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[Tavus] Create persona error: ${response.status} ${errorText}`);
+        throw new Error(`Tavus API error: ${response.status} - ${errorText}`);
+      }
+
+      const data = (await response.json()) as { persona_id: string; persona_name: string };
+      return {
+        personaId: data.persona_id,
+        personaName: data.persona_name || options.personaName,
+      };
+    } catch (error) {
+      console.error("[Tavus] Create persona error:", error);
       throw error;
     }
   }

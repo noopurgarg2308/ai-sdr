@@ -57,8 +57,14 @@ export default function WidgetChatTavus({ companyId }: WidgetChatTavusProps) {
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to create Tavus session");
+        const data = await response.json().catch(() => ({}));
+        const msg = data.error || "Failed to create Tavus session";
+        if (response.status === 402) {
+          throw new Error(
+            "Video chat is unavailable: Tavus account needs payment or has reached its usage limit. Check billing at platform.tavus.io."
+          );
+        }
+        throw new Error(msg);
       }
 
       const { sessionId: sid, websocketUrl } = await response.json();
@@ -131,7 +137,7 @@ export default function WidgetChatTavus({ companyId }: WidgetChatTavusProps) {
         console.log("[Tavus] Participant left:", event);
       });
 
-      // Join the room
+      // Join the room (default is mic + camera on; avatar needs mic to hear the user)
       await daily.join({ url: roomUrl });
     } catch (error: any) {
       console.error("[Tavus] Session error:", error);
@@ -314,8 +320,11 @@ export default function WidgetChatTavus({ companyId }: WidgetChatTavusProps) {
                 {isLoading ? "Connecting..." : "Start Video Chat"}
               </button>
             ) : (
-              <div className="text-center text-gray-500 text-sm">
-                Speak naturally - the AI will respond in real-time
+              <div className="text-center space-y-2">
+                <p className="text-gray-700 text-sm font-medium">Speak naturally — the AI will respond in real-time</p>
+                <p className="text-gray-500 text-xs">
+                  If the avatar doesn&apos;t hear you: allow <strong>microphone</strong> access when your browser asks (or check the site icon in the address bar → Site settings → Microphone → Allow).
+                </p>
               </div>
             )}
           </div>
