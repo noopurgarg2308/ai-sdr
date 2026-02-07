@@ -24,6 +24,10 @@
 .DS_Store
 *.pem
 
+# customer lead/conversation data (per-company files)
+/data/leads/
+/data/conversations/
+
 # debug
 npm-debug.log*
 yarn-debug.log*

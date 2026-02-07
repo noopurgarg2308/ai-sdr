@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import type { ChatMessage } from "@/types/chat";
 import { RealtimeClient } from "@/lib/realtime";
 import { toolDefinitions } from "@/lib/toolDefinitions";
+
+const IDLE_TIMEOUT_MS = 60 * 1000; // 1 minute
 
 interface WidgetChatProps {
   companyId: string;
@@ -34,6 +36,9 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const realtimeClientRef = useRef<RealtimeClient | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
+  const messagesRef = useRef<ChatMessage[]>(messages);
+  const lastActivityRef = useRef<number>(Date.now());
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -43,14 +48,45 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
     scrollToBottom();
   }, [messages]);
 
-  // Cleanup on unmount
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  // Idle timeout: if no user input for 1 min, show message and disconnect
+  useEffect(() => {
+    if (!isConnected) return;
+
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - lastActivityRef.current;
+      if (elapsed >= IDLE_TIMEOUT_MS) {
+        clearInterval(interval);
+        disconnect("idle");
+      }
+    }, 15000); // Check every 15 seconds
+
+    return () => clearInterval(interval);
+  }, [isConnected, disconnect]);
+
+  // Cleanup on unmount: log conversation if any, then disconnect
   useEffect(() => {
     return () => {
+      const sid = sessionIdRef.current;
+      const msgs = messagesRef.current.filter((m) => m.content.trim());
+      if (sid && msgs.length > 0) {
+        fetch(`/api/chat/${companyId}/log-conversation`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: sid,
+            messages: msgs.map((m) => ({ role: m.role, content: m.content })),
+          }),
+        }).catch(() => {});
+      }
       if (realtimeClientRef.current) {
         realtimeClientRef.current.disconnect();
       }
     };
-  }, []);
+  }, [companyId]);
 
   const initializeRealtime = async () => {
     try {
@@ -86,7 +122,7 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
 
 Be conversational and helpful. Ask about their role and needs.
 
-CRITICAL: Always use the search_knowledge tool when answering questions about ${company.displayName}, its products, pricing, features, or documentation. Never rely on general knowledge for company-specific questions. Use show_visual, get_demo_clip, create_meeting_link, or log_lead when appropriate. When search_knowledge returns linked visuals, they are shown automatically—do not describe them in your reply.`;
+CRITICAL: Always use the search_knowledge tool when answering questions about ${company.displayName}, its products, pricing, features, or documentation. Never rely on general knowledge for company-specific questions. Use show_visual, get_demo_clip, or create_meeting_link when appropriate. When search_knowledge returns linked visuals, they are shown automatically—do not describe them in your reply.`;
         }
       }
 
@@ -110,6 +146,8 @@ CRITICAL: Always use the search_knowledge tool when answering questions about ${
           setIsSpeaking(true);
         },
         onTranscript: (text, role) => {
+          if (role === "user") lastActivityRef.current = Date.now();
+
           const newMessage: ChatMessage = {
             id: `msg_${Date.now()}_${Math.random()}`,
             role: role as "user" | "assistant",
@@ -117,7 +155,7 @@ CRITICAL: Always use the search_knowledge tool when answering questions about ${
             createdAt: new Date().toISOString(),
           };
           setMessages((prev) => [...prev, newMessage]);
-          
+
           if (role === "assistant") {
             setIsSpeaking(false);
           }
@@ -181,8 +219,10 @@ CRITICAL: Always use the search_knowledge tool when answering questions about ${
       });
 
       await realtimeClientRef.current.connect();
+      sessionIdRef.current = `realtime_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      lastActivityRef.current = Date.now();
       setIsConnected(true);
-      
+
       console.log("[Realtime] Connected successfully");
     } catch (err) {
       console.error("[Realtime] Initialization error:", err);
@@ -192,6 +232,8 @@ CRITICAL: Always use the search_knowledge tool when answering questions about ${
   };
 
   const startConversation = async () => {
+    lastActivityRef.current = Date.now();
+
     if (!isConnected) {
       await initializeRealtime();
     }
@@ -217,15 +259,34 @@ CRITICAL: Always use the search_knowledge tool when answering questions about ${
     }
   };
 
-  const disconnect = () => {
+  const disconnect = useCallback((reason?: "idle") => {
+    const sid = sessionIdRef.current;
+    const msgs = messagesRef.current.filter((m) => m.content.trim());
+    if (sid && msgs.length > 0) {
+      fetch(`/api/chat/${companyId}/log-conversation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: sid,
+          messages: msgs.map((m) => ({ role: m.role, content: m.content })),
+        }),
+      }).catch((err) => console.warn("[Realtime] Log conversation failed:", err));
+    }
+
     if (realtimeClientRef.current) {
       realtimeClientRef.current.disconnect();
       realtimeClientRef.current = null;
     }
+    sessionIdRef.current = null;
     setIsConnected(false);
     setIsRecording(false);
     setIsSpeaking(false);
-  };
+    if (reason === "idle") {
+      setError("Session ended due to inactivity. Connect again to continue.");
+    } else {
+      setError(undefined);
+    }
+  }, [companyId]);
 
   return (
     <div className="flex flex-col h-full max-w-4xl mx-auto bg-white">

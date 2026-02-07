@@ -3,6 +3,7 @@ import { openai } from "@/lib/openai";
 import { getCompanyConfigBySlug } from "@/lib/companies";
 import { buildSystemPrompt } from "@/lib/systemPrompt";
 import { toolDefinitions, dispatchToolCall } from "@/lib/tools";
+import { classifyAndLogConversation } from "@/lib/crm";
 import type { ChatRequest, ChatResponse, ChatMessage } from "@/types/chat";
 
 export async function POST(
@@ -137,6 +138,13 @@ export async function POST(
       meetingLink,
       visualAssets: visualAssets.length > 0 ? visualAssets : undefined,
     };
+
+    // Log every conversation (fire-and-forget): classify as lead or not, extract contact info
+    const fullMessages = [
+      ...body.messages.map((m) => ({ role: m.role, content: m.content })),
+      { role: "assistant" as const, content: reply.content },
+    ];
+    classifyAndLogConversation(config.id, sessionId, fullMessages).catch(() => {});
 
     return NextResponse.json(response);
   } catch (error) {

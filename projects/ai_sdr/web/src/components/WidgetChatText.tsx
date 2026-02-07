@@ -5,6 +5,7 @@ import type { ChatMessage } from "@/types/chat";
 
 // Timeout for image loading (5 seconds)
 const IMAGE_LOAD_TIMEOUT = 5000;
+const IDLE_TIMEOUT_MS = 60 * 1000; // 1 minute
 
 interface WidgetChatProps {
   companyId: string;
@@ -33,7 +34,10 @@ export default function WidgetChatText({ companyId }: WidgetChatProps) {
   }>>([]);
   const [failedImageUrls, setFailedImageUrls] = useState<string[]>([]);
   const [loadedImageUrls, setLoadedImageUrls] = useState<Set<string>>(new Set());
+  const [sessionEndedIdle, setSessionEndedIdle] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastActivityRef = useRef<number>(Date.now());
+  const idleTerminatedRef = useRef(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -42,6 +46,38 @@ export default function WidgetChatText({ companyId }: WidgetChatProps) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Idle timeout: if no user message for 1 min, show message and terminate session
+  useEffect(() => {
+    idleTerminatedRef.current = false;
+
+    const interval = setInterval(() => {
+      if (idleTerminatedRef.current) return;
+
+      const elapsed = Date.now() - lastActivityRef.current;
+      if (elapsed >= IDLE_TIMEOUT_MS && messages.length > 1) {
+        idleTerminatedRef.current = true;
+        setSessionEndedIdle(true);
+        setSessionId(undefined);
+
+        // Log the conversation (fire-and-forget)
+        const sid = sessionId || `text_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        const msgs = messages.filter((m) => m.content.trim());
+        if (msgs.length > 0) {
+          fetch(`/api/chat/${companyId}/log-conversation`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sessionId: sid,
+              messages: msgs.map((m) => ({ role: m.role, content: m.content })),
+            }),
+          }).catch(() => {});
+        }
+      }
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [messages, sessionId, companyId]);
 
   // Clear image state when visual assets change (new query = fresh start)
   useEffect(() => {
@@ -135,6 +171,10 @@ export default function WidgetChatText({ companyId }: WidgetChatProps) {
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
+
+    lastActivityRef.current = Date.now();
+    setSessionEndedIdle(false);
+    idleTerminatedRef.current = false;
 
     const userMessage: ChatMessage = {
       id: `msg_${Date.now()}`,
@@ -254,6 +294,15 @@ export default function WidgetChatText({ companyId }: WidgetChatProps) {
         <h1 className="text-xl font-semibold">AI Sales Assistant (Text + Visuals)</h1>
         <p className="text-sm text-blue-100">Type your questions and I'll show you visuals</p>
       </div>
+
+      {/* Idle timeout message */}
+      {sessionEndedIdle && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3 flex-shrink-0">
+          <p className="text-amber-800 text-sm">
+            Session ended due to inactivity. Type a message below to start a new conversation.
+          </p>
+        </div>
+      )}
 
       {/* Scrollable Content Area */}
       <div className="flex-1 overflow-y-auto">

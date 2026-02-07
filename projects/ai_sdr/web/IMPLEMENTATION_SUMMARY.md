@@ -31,10 +31,11 @@ Your multi-tenant AI SDR SaaS platform is now fully implemented with multimodal 
 - `toolDefinitions.ts` - Tool definitions with updated descriptions
 - `demoMedia.ts` - Demo clip retrieval from database
 - `scheduling.ts` - Meeting link generation
-- `crm.ts` - Lead logging
+- `crm.ts` - Conversation logging (classify + log every conversation; per-company JSONL files)
 
 ### API Routes (app/api/)
-- `chat/[companyId]/route.ts` - Multi-tenant chat endpoint with OpenAI integration
+- `chat/[companyId]/route.ts` - Multi-tenant chat endpoint with OpenAI integration; auto-logs every conversation
+- `chat/[companyId]/log-conversation/route.ts` - **NEW**: Client-triggered conversation logging (Realtime)
 - `admin/companies/route.ts` - GET (list) and POST (create) companies
 - `admin/companies/[id]/route.ts` - GET, PUT, DELETE individual company
 - `admin/media/upload/route.ts` - **UPDATED**: PDF upload and website source creation
@@ -129,8 +130,14 @@ Your multi-tenant AI SDR SaaS platform is now fully implemented with multimodal 
 ✅ `search_knowledge` - **Fully implemented** RAG knowledge base search  
 ✅ `get_demo_clip` - Retrieve relevant demo videos  
 ✅ `create_meeting_link` - Generate meeting booking links  
-✅ `log_lead` - Log qualified leads to CRM  
-✅ `show_visual` - Show visual content (legacy, visuals now auto-included)  
+✅ `show_visual` - Show visual content (legacy, visuals now auto-included)
+
+### Conversation Logging & Session Management
+✅ **Every conversation logged** - Text chat and Realtime voice; classified as lead or visitor  
+✅ **AI classification** - GPT-4o-mini extracts name, email, company, role, summary (fields can be blank)  
+✅ **Per-company files** - `data/conversations/{companyId}.jsonl`  
+✅ **Idle timeout** - 1 min no input → session ends, message shown, conversation logged  
+✅ **Realtime logging** - On disconnect or unmount; `POST /api/chat/[companyId]/log-conversation`  
 
 ### User Interfaces
 ✅ Embeddable chat widget with modern UI  
@@ -143,7 +150,8 @@ Your multi-tenant AI SDR SaaS platform is now fully implemented with multimodal 
 ✅ Embed code generator  
 
 ### API Endpoints
-✅ `POST /api/chat/[companyId]` - Chat completion with tools and visuals  
+✅ `POST /api/chat/[companyId]` - Chat completion with tools and visuals (auto-logs each turn)  
+✅ `POST /api/chat/[companyId]/log-conversation` - **NEW**: Client-triggered conversation logging  
 ✅ `GET /api/admin/companies` - List all companies  
 ✅ `POST /api/admin/companies` - Create new company  
 ✅ `GET /api/admin/companies/[id]` - Get single company  

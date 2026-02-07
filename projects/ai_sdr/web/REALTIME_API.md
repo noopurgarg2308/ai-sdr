@@ -98,6 +98,13 @@ http://localhost:3000/widget/hypersonix
 - **Blue Dot + "AI is speaking..."** - AI responding
 - **Gray "Disconnect" Button** - End session
 
+### Idle Timeout & Session Lifecycle:
+- **1 minute** of no user speech → session ends automatically
+- **Message shown**: "Session ended due to inactivity. Connect again to continue."
+- **Conversation logged** to `data/conversations/{companyId}.jsonl` before disconnect
+- Activity resets the timer: user speech or clicking "Start Speaking"
+- Also logs when user clicks "Disconnect" or navigates away
+
 ## 🔧 Technical Details
 
 ### Audio Format:
@@ -123,7 +130,8 @@ The Realtime API can call your existing tools:
 - `get_demo_clip` - Show product demos
 - `show_visual` - Show images/charts
 - `create_meeting_link` - Book meetings
-- `log_lead` - Log to CRM
+
+(Conversation logging is automatic when the user disconnects or when the session ends due to idle timeout.)
 
 ### Session API & API Key:
 - `POST /api/realtime/session` returns `apiKey` and `model` for the client to open the WebSocket. The key is only sent over HTTPS; for production, use OpenAI’s [Realtime Sessions](https://platform.openai.com/docs/api-reference/realtime-sessions) (ephemeral tokens) so the client never sees your API key.

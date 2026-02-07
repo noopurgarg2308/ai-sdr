@@ -24,8 +24,6 @@ function formatToolResultForLLM(toolName: string, result: unknown): string {
       return typeof r.url === "string" ? `Demo clip: ${r.url}` : JSON.stringify(r);
     case "create_meeting_link":
       return typeof r.link === "string" ? `Meeting link: ${r.link}` : JSON.stringify(r);
-    case "log_lead":
-      return "Lead logged successfully.";
     default:
       return typeof r === "object" ? JSON.stringify(r) : String(r);
   }

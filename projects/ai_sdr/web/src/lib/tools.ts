@@ -4,7 +4,6 @@ import { intelligentSearch } from "./smartSearch";
 import { hybridSearch } from "./hybridSearch";
 import { getDemoClip } from "./demoMedia";
 import { createMeetingLink } from "./scheduling";
-import { logLeadToCRM, type LeadPayload } from "./crm";
 import { searchMediaAssets, type MediaType, type MediaCategory } from "./media";
 
 // Export tool definitions from separate file to avoid client-side imports
@@ -402,14 +401,6 @@ export async function dispatchToolCall(
 
     case "create_meeting_link":
       return await createMeetingLink(args.timezone, args.persona);
-
-    case "log_lead": {
-      const payload: LeadPayload = {
-        ...args,
-        companyId,
-      };
-      return await logLeadToCRM(payload);
-    }
 
     case "show_visual": {
       const results = await searchMediaAssets({

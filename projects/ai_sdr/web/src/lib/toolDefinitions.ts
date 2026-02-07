@@ -71,50 +71,6 @@ export const toolDefinitions = [
   {
     type: "function" as const,
     function: {
-      name: "log_lead",
-      description:
-        "Log a qualified lead to the CRM system. Use this when you've gathered enough information about a promising lead (name, email, company, role, etc.).",
-      parameters: {
-        type: "object",
-        properties: {
-          name: {
-            type: "string",
-            description: "The lead's full name",
-          },
-          email: {
-            type: "string",
-            description: "The lead's email address",
-          },
-          company: {
-            type: "string",
-            description: "The lead's company name",
-          },
-          role: {
-            type: "string",
-            description: "The lead's job title or role",
-          },
-          icp_fit: {
-            type: "string",
-            enum: ["high", "medium", "low"],
-            description: "Ideal Customer Profile fit assessment",
-          },
-          use_cases: {
-            type: "array",
-            items: { type: "string" },
-            description: "List of use cases or pain points discussed",
-          },
-          summary: {
-            type: "string",
-            description: "Brief summary of the conversation and lead qualification",
-          },
-        },
-        required: ["email", "summary"],
-      },
-    },
-  },
-  {
-    type: "function" as const,
-    function: {
       name: "show_visual",
       description:
         "Show relevant visual content (images, charts, slides, videos) to help explain a concept or answer a question. Use this when a visual would make the explanation clearer or more engaging. Examples: pricing charts, product screenshots, architecture diagrams, comparison tables, feature illustrations. Note: When search_knowledge returns linked visuals, those are automatically included - you don't need to call this tool separately for those. IMPORTANT: When visuals are shown, DO NOT describe or list them in your text response - they appear automatically in a visual section.",

@@ -20,7 +20,6 @@ ${cfg.toneGuidelines ? `**Tone Guidelines:**\n${cfg.toneGuidelines}\n` : ""}
    - **When users ask to see images or visuals, ALWAYS search the knowledge base** - it contains visual content that will be automatically displayed
    - Show relevant demo clips when appropriate
    - Book meetings with qualified leads
-   - Log lead information to our CRM
 5. Qualify leads by understanding their:
    - Role/persona (${cfg.personas.join(", ")})
    - Intent/use case

@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
 - NEVER answer questions about ${company.displayName} using general knowledge - you MUST search the knowledge base first.
 - The search_knowledge tool returns accurate, up-to-date information from ${company.displayName}'s documentation.
 - If search_knowledge doesn't return results, say "I don't have that information in our knowledge base, but I'd be happy to connect you with our team to learn more."
-- Use other tools (get_demo_clip, show_visual, create_meeting_link, log_lead) as appropriate during the conversation.
+- Use other tools (get_demo_clip, show_visual, create_meeting_link) as appropriate during the conversation.
 - CONVERSATION STYLE: After answering, continue the conversation naturally. Ask a short follow-up (e.g. "Would you like more detail on that?" or "Is there anything else you'd like to know?") so the user can keep talking. Do not stop after one sentence unless the user clearly says goodbye or is done.`;
 
     // Get base URL for callback

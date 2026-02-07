@@ -8,11 +8,12 @@
 4. [Processing Pipelines](#processing-pipelines)
 5. [RAG Search System](#rag-search-system)
 6. [Visual Content System](#visual-content-system)
-7. [API Reference](#api-reference)
-8. [Admin Interface](#admin-interface)
-9. [Database Schema](#database-schema)
-10. [Configuration](#configuration)
-11. [Troubleshooting](#troubleshooting)
+7. [Conversation Logging & Session Management](#conversation-logging--session-management)
+8. [API Reference](#api-reference)
+9. [Admin Interface](#admin-interface)
+10. [Database Schema](#database-schema)
+11. [Configuration](#configuration)
+12. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -462,6 +463,23 @@ The RAG (Retrieval-Augmented Generation) system searches across **all content so
 
 ---
 
+## Conversation Logging & Session Management
+
+Every conversation (text chat and Realtime voice) is automatically logged to `data/conversations/{companyId}.jsonl`. Each entry is classified by AI as **lead** or **visitor**, with extracted contact info (name, email, company, role, etc.). Fields can be blank if not mentioned.
+
+### When Logging Happens
+
+- **Text chat**: After each AI response (fire-and-forget)
+- **Realtime voice**: When user disconnects, unmounts, or session ends due to idle timeout
+
+### Idle Timeout
+
+Both text and Realtime sessions end automatically after **1 minute** of no user input. A message is shown, the conversation is logged, and the session resets.
+
+See [CONVERSATION_LOGGING.md](CONVERSATION_LOGGING.md) for full details.
+
+---
+
 ## API Reference
 
 ### Chat API
@@ -496,6 +514,28 @@ The RAG (Retrieval-Augmented Generation) system searches across **all content so
   demoClipUrl?: string;
   meetingLink?: string;
 }
+```
+
+### Log Conversation API
+
+**Endpoint**: `POST /api/chat/:companyId/log-conversation`
+
+Used by the Realtime widget to log conversations on disconnect. Text chat logs automatically after each response.
+
+**Request:**
+```json
+{
+  "sessionId": "realtime_123_abc",
+  "messages": [
+    { "role": "user", "content": "Hi, I'm interested in pricing." },
+    { "role": "assistant", "content": "Great! Let me show you..." }
+  ]
+}
+```
+
+**Response:**
+```json
+{ "success": true }
 ```
 
 ### Admin APIs

@@ -80,7 +80,7 @@ Visit http://localhost:3000 to see the app.
    - Answer product questions (via RAG/knowledge search)
    - Show demo clips
    - Book meetings
-   - Log qualified leads
+   - Every conversation is logged to `data/conversations/{companyId}.jsonl` (classified as lead or visitor)
 
 ### Embed on Your Website
 
@@ -116,7 +116,7 @@ Copy the embed code from the admin page:
     rag.ts                  - Knowledge search (stub)
     demoMedia.ts            - Demo clip retrieval
     scheduling.ts           - Meeting link generation
-    crm.ts                  - Lead logging (stub)
+    crm.ts                  - Conversation logging (AI classification, per-company JSONL)
   /types
     chat.ts                 - TypeScript types
 /prisma
