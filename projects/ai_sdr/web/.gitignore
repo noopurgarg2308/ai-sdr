@@ -28,6 +28,10 @@
 /data/leads/
 /data/conversations/
 
+# local dev database (recreate with: npx prisma migrate dev)
+prisma/dev.db
+prisma/*.db
+
 # debug
 npm-debug.log*
 yarn-debug.log*
