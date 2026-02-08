@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import { extractTextFromImage } from "./ocr";
 import { ingestCompanyDoc } from "./rag";
+import { getOpenAIKeyForCompany } from "./openai";
 import type { MediaAsset } from "@prisma/client";
 
 /**
@@ -24,6 +25,9 @@ export async function processImageAsset(
     throw new Error(`Asset ${mediaAssetId} is not an image (type: ${asset.type})`);
   }
 
+  // Get OpenAI key for company (BYOK or platform - never fall back to platform key for BYOK)
+  const openaiApiKey = await getOpenAIKeyForCompany(asset.companyId);
+
   // Update status to processing
   await prisma.mediaAsset.update({
     where: { id: mediaAssetId },
@@ -32,7 +36,7 @@ export async function processImageAsset(
 
   try {
     // Extract text using GPT-4 Vision
-    const { text, confidence } = await extractTextFromImage(asset.url);
+    const { text, confidence } = await extractTextFromImage(asset.url, openaiApiKey);
 
     // Create RAG document from extracted text, linking to media asset
     const document = await ingestCompanyDoc({
@@ -41,6 +45,7 @@ export async function processImageAsset(
       source: "ocr",
       content: text,
       mediaAssetId: asset.id, // Link chunks to media asset
+      openaiApiKey,
     });
 
     // Update media asset with extracted text and status

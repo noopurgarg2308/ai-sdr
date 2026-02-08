@@ -25,6 +25,13 @@ model Company {
   chunks           Chunk[]
   mediaAssets      MediaAsset[]
   
+  // Visual content (images, demos, videos) - OFF by default for MVP
+  useVisuals       Boolean      @default(false)
+
+  // Tier 1 BYOK: client-provided OpenAI API key (stored per company)
+  billingTier      String?      // "byok" = bring your own key (required), null = use platform key
+  openaiApiKey     String?      // Client's OpenAI API key (for billingTier="byok")
+
   // Tavus integration fields
   tavusReplicaId   String?      // Tavus replica ID for video avatar
   tavusPersonaId    String?      // Tavus persona ID

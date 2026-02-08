@@ -731,7 +731,7 @@ model MediaAsset {
 ### Environment Variables
 
 ```bash
-# Required
+# Required (for non-BYOK companies)
 OPENAI_API_KEY=sk-...
 DATABASE_URL=file:./prisma/dev.db  # or PostgreSQL URL
 
@@ -739,6 +739,17 @@ DATABASE_URL=file:./prisma/dev.db  # or PostgreSQL URL
 MEETING_BASE_URL=https://calendly.com/...
 NODE_ENV=development
 ```
+
+For **Tier 1 (BYOK)** companies, the platform key is not used. Each company must have its own `openaiApiKey` configured. The system never falls back to the platform key when the BYOK field is empty — requests fail instead.
+
+### Tier 1 BYOK (Bring Your Own Key)
+
+Companies with `billingTier: "byok"` must provide their own OpenAI API key:
+
+- **`openaiApiKey`** — Client's OpenAI API key (required when `billingTier` is `"byok"`).
+- **No fallback** — If the BYOK field is empty, all AI operations (chat, Realtime, RAG, OCR, video processing, etc.) fail with an error. This ensures no client traffic is billed to the platform.
+
+See [Tier 1 Client Implementation Guide](TIER1_CLIENT_IMPLEMENTATION_GUIDE_INTERNAL.md) for onboarding steps.
 
 ### Company Configuration
 
@@ -756,6 +767,8 @@ NODE_ENV=development
   }
 }
 ```
+
+Company-level fields (in DB): `billingTier` (`"byok"` or null), `openaiApiKey` (for BYOK only).
 
 ### Tavus CVI & Persona
 

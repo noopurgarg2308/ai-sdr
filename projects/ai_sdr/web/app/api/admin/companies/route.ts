@@ -13,7 +13,14 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json(companies);
+    // Mask API keys for list response
+    const safe = companies.map((c) => ({
+      ...c,
+      openaiApiKey: c.openaiApiKey ? `${c.openaiApiKey.slice(0, 7)}...****` : null,
+      openaiApiKeyConfigured: !!c.openaiApiKey,
+    }));
+
+    return NextResponse.json(safe);
   } catch (error) {
     console.error("[Admin API] Error fetching companies:", error);
     return NextResponse.json(

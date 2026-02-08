@@ -10,6 +10,13 @@ interface Company {
   websiteUrl?: string;
   ownerEmail?: string;
   createdAt: string;
+  useVisuals?: boolean;
+  useTavusVideo?: boolean;
+  tavusReplicaId?: string | null;
+  tavusPersonaId?: string | null;
+  billingTier?: string | null;
+  openaiApiKey?: string | null;
+  openaiApiKeyConfigured?: boolean;
   _count?: {
     demoClips: number;
   };
@@ -44,6 +51,13 @@ export default function AdminCompaniesPage() {
     metadata?: any;
   }>>([]);
   const [refreshingStatus, setRefreshingStatus] = useState<Set<string>>(new Set());
+  const [expandedTavus, setExpandedTavus] = useState<Set<string>>(new Set());
+  const [savingVisuals, setSavingVisuals] = useState<Set<string>>(new Set());
+  const [tavusForm, setTavusForm] = useState<Record<string, { useTavusVideo: boolean; tavusReplicaId: string; tavusPersonaId: string }>>({});
+  const [savingTavus, setSavingTavus] = useState<Set<string>>(new Set());
+  const [expandedBYOK, setExpandedBYOK] = useState<Set<string>>(new Set());
+  const [byokForm, setByokForm] = useState<Record<string, { billingTier: string; openaiApiKey: string }>>({});
+  const [savingBYOK, setSavingBYOK] = useState<Set<string>>(new Set());
 
   // Form state
   const [formData, setFormData] = useState({
@@ -257,6 +271,135 @@ export default function AdminCompaniesPage() {
     } finally {
       setIsCreatingWebsite(false);
     }
+  };
+
+  const handleSaveVisuals = async (companyId: string, useVisuals: boolean) => {
+    setSavingVisuals((prev) => new Set(prev).add(companyId));
+    try {
+      const response = await fetch(`/api/admin/companies/${companyId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ useVisuals }),
+      });
+      if (!response.ok) throw new Error("Failed to save");
+      setSuccess("Visuals settings saved");
+      fetchCompanies();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setSavingVisuals((prev) => {
+        const next = new Set(prev);
+        next.delete(companyId);
+        return next;
+      });
+    }
+  };
+
+  const handleSaveTavus = async (companyId: string) => {
+    const form = tavusForm[companyId];
+    if (!form) return;
+    setSavingTavus((prev) => new Set(prev).add(companyId));
+    try {
+      const response = await fetch(`/api/admin/companies/${companyId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          useTavusVideo: form.useTavusVideo,
+          tavusReplicaId: form.tavusReplicaId.trim() || null,
+          tavusPersonaId: form.tavusPersonaId.trim() || null,
+        }),
+      });
+      if (!response.ok) throw new Error("Failed to save");
+      setSuccess("Tavus settings saved");
+      fetchCompanies();
+      setExpandedTavus((prev) => {
+        const next = new Set(prev);
+        next.delete(companyId);
+        return next;
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save Tavus settings");
+    } finally {
+      setSavingTavus((prev) => {
+        const next = new Set(prev);
+        next.delete(companyId);
+        return next;
+      });
+    }
+  };
+
+  const toggleBYOKForm = (company: Company) => {
+    setExpandedBYOK((prev) => {
+      const next = new Set(prev);
+      if (next.has(company.id)) {
+        next.delete(company.id);
+      } else {
+        next.add(company.id);
+        setByokForm((f) => ({
+          ...f,
+          [company.id]: {
+            billingTier: company.billingTier || "",
+            openaiApiKey: "", // Never pre-fill actual key
+          },
+        }));
+      }
+      return next;
+    });
+  };
+
+  const handleSaveBYOK = async (companyId: string) => {
+    const form = byokForm[companyId];
+    if (!form) return;
+    setSavingBYOK((prev) => new Set(prev).add(companyId));
+    try {
+      const body: Record<string, string | null> = {
+        billingTier: form.billingTier || null,
+      };
+      if (form.openaiApiKey.trim()) {
+        body.openaiApiKey = form.openaiApiKey.trim();
+      }
+      const response = await fetch(`/api/admin/companies/${companyId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) throw new Error("Failed to save");
+      setSuccess("BYOK settings saved");
+      fetchCompanies();
+      setExpandedBYOK((prev) => {
+        const next = new Set(prev);
+        next.delete(companyId);
+        return next;
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save BYOK settings");
+    } finally {
+      setSavingBYOK((prev) => {
+        const next = new Set(prev);
+        next.delete(companyId);
+        return next;
+      });
+    }
+  };
+
+  const toggleTavusForm = (company: Company) => {
+    setExpandedTavus((prev) => {
+      const next = new Set(prev);
+      if (next.has(company.id)) {
+        next.delete(company.id);
+      } else {
+        next.add(company.id);
+        setTavusForm((f) => ({
+          ...f,
+          [company.id]: {
+            useTavusVideo: company.useTavusVideo ?? false,
+            tavusReplicaId: company.tavusReplicaId ?? "",
+            tavusPersonaId: company.tavusPersonaId ?? "",
+          },
+        }));
+      }
+      return next;
+    });
   };
 
   const handleTriggerCrawl = async (companyId: string, sourceId: string) => {
@@ -730,6 +873,167 @@ export default function AdminCompaniesPage() {
                         📋 Copy
                       </button>
                     </div>
+                  </div>
+
+                  {/* Tier 1 BYOK - Bring Your Own Key */}
+                  <div className="mt-4 border-t pt-4">
+                    <button
+                      type="button"
+                      onClick={() => toggleBYOKForm(company)}
+                      className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                    >
+                      {expandedBYOK.has(company.id) ? "▼" : "▶"} Tier 1 BYOK (Bring Your Own Key)
+                      {company.billingTier === "byok" && company.openaiApiKeyConfigured && (
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Configured</span>
+                      )}
+                    </button>
+                    {expandedBYOK.has(company.id) && byokForm[company.id] && (
+                      <div className="mt-3 p-4 bg-blue-50 rounded border border-blue-200 space-y-3">
+                        <p className="text-xs text-gray-600">
+                          When set to BYOK, the client provides their own OpenAI API key. The AI SDR will not work until the key is configured.
+                        </p>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Billing Tier</label>
+                          <select
+                            value={byokForm[company.id].billingTier}
+                            onChange={(e) =>
+                              setByokForm((f) => ({
+                                ...f,
+                                [company.id]: { ...f[company.id], billingTier: e.target.value },
+                              }))
+                            }
+                            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="">Platform key (default)</option>
+                            <option value="byok">BYOK (Bring Your Own Key)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">OpenAI API Key</label>
+                          <input
+                            type="password"
+                            value={byokForm[company.id].openaiApiKey}
+                            onChange={(e) =>
+                              setByokForm((f) => ({
+                                ...f,
+                                [company.id]: { ...f[company.id], openaiApiKey: e.target.value },
+                              }))
+                            }
+                            placeholder={company.openaiApiKeyConfigured ? "•••••••• (leave blank to keep existing)" : "sk-..."}
+                            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          {company.openaiApiKeyConfigured && (
+                            <p className="text-xs text-gray-500 mt-1">Current: {company.openaiApiKey}</p>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleSaveBYOK(company.id)}
+                          disabled={savingBYOK.has(company.id)}
+                          className="bg-blue-600 text-white px-4 py-2 rounded text-sm font-semibold hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        >
+                          {savingBYOK.has(company.id) ? "Saving..." : "Save BYOK Settings"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Visuals (images, demos, videos) - OFF by default for MVP */}
+                  <div className="mt-4 border-t pt-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <span className="text-sm font-medium text-gray-700">Show images, demos & videos</span>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {company.useVisuals ? "Enabled" : "OFF (MVP default) — text/voice only"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={company.useVisuals ?? false}
+                            onChange={(e) => handleSaveVisuals(company.id, e.target.checked)}
+                            disabled={savingVisuals.has(company.id)}
+                            className="rounded border-gray-300"
+                          />
+                          <span className="text-sm">Enable</span>
+                        </label>
+                        {savingVisuals.has(company.id) && <span className="text-xs text-gray-500">Saving...</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tavus (Video Avatar) - Optional per company */}
+                  <div className="mt-4 border-t pt-4">
+                    <button
+                      type="button"
+                      onClick={() => toggleTavusForm(company)}
+                      className="text-sm font-medium text-purple-600 hover:text-purple-700 flex items-center gap-1"
+                    >
+                      {expandedTavus.has(company.id) ? "▼" : "▶"} Tavus Video Avatar
+                      {company.useTavusVideo && company.tavusReplicaId && (
+                        <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Enabled</span>
+                      )}
+                    </button>
+                    {expandedTavus.has(company.id) && tavusForm[company.id] && (
+                      <div className="mt-3 p-4 bg-purple-50 rounded border border-purple-200 space-y-3">
+                        <p className="text-xs text-gray-600">
+                          Enable video avatar mode for this company. Requires Tavus replica ID. Leave disabled for MVP (text + voice only).
+                        </p>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={tavusForm[company.id].useTavusVideo}
+                            onChange={(e) =>
+                              setTavusForm((f) => ({
+                                ...f,
+                                [company.id]: { ...f[company.id], useTavusVideo: e.target.checked },
+                              }))
+                            }
+                            className="rounded border-gray-300"
+                          />
+                          <span className="text-sm font-medium">Enable Tavus Video Avatar</span>
+                        </label>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Tavus Replica ID *</label>
+                          <input
+                            type="text"
+                            value={tavusForm[company.id].tavusReplicaId}
+                            onChange={(e) =>
+                              setTavusForm((f) => ({
+                                ...f,
+                                [company.id]: { ...f[company.id], tavusReplicaId: e.target.value },
+                              }))
+                            }
+                            placeholder="Required when video enabled"
+                            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Tavus Persona ID (optional)</label>
+                          <input
+                            type="text"
+                            value={tavusForm[company.id].tavusPersonaId}
+                            onChange={(e) =>
+                              setTavusForm((f) => ({
+                                ...f,
+                                [company.id]: { ...f[company.id], tavusPersonaId: e.target.value },
+                              }))
+                            }
+                            placeholder="Leave empty to auto-create"
+                            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleSaveTavus(company.id)}
+                          disabled={savingTavus.has(company.id)}
+                          className="bg-purple-600 text-white px-4 py-2 rounded text-sm font-semibold hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        >
+                          {savingTavus.has(company.id) ? "Saving..." : "Save Tavus Settings"}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

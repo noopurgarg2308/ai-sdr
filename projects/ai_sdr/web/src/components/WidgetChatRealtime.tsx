@@ -105,24 +105,27 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
 
       const { apiKey, model } = await response.json();
 
-      // Get company config for system instructions
+      // Get company config for system instructions and tools
       const companyResponse = await fetch(`/api/admin/companies?slug=${companyId}`);
       let instructions = "You are a helpful AI sales assistant.";
-      
+      let tools = toolDefinitions;
+
       if (companyResponse.ok) {
         const companies = await companyResponse.json();
         const company = companies.find((c: any) => c.slug === companyId);
         if (company) {
-          // Build system prompt from company config
-          const config = {
-            ...company,
-            ...(typeof company.config === 'object' ? company.config : {}),
-          };
+          const useVisuals = company.useVisuals ?? false;
+          tools = useVisuals ? toolDefinitions : toolDefinitions.filter(
+            (t: any) => t.function.name !== "get_demo_clip" && t.function.name !== "show_visual"
+          );
+          const visualNote = useVisuals
+            ? "Use show_visual, get_demo_clip, or create_meeting_link when appropriate. When search_knowledge returns linked visuals, they are shown automatically—do not describe them in your reply."
+            : "Visuals are disabled. Answer in text/voice only. Do NOT use get_demo_clip or show_visual. Do not offer to show images, charts, or demos.";
           instructions = `You are an AI SDR for ${company.displayName}. ${company.shortDescription || ''}
 
 Be conversational and helpful. Ask about their role and needs.
 
-CRITICAL: Always use the search_knowledge tool when answering questions about ${company.displayName}, its products, pricing, features, or documentation. Never rely on general knowledge for company-specific questions. Use show_visual, get_demo_clip, or create_meeting_link when appropriate. When search_knowledge returns linked visuals, they are shown automatically—do not describe them in your reply.`;
+CRITICAL: Always use the search_knowledge tool when answering questions about ${company.displayName}, its products, pricing, features, or documentation. Never rely on general knowledge for company-specific questions. Use create_meeting_link when the visitor is ready. ${visualNote}`;
         }
       }
 
@@ -132,7 +135,7 @@ CRITICAL: Always use the search_knowledge tool when answering questions about ${
         model,
         voice: "alloy",
         instructions,
-        tools: toolDefinitions,
+        tools,
         onMessage: (message) => {
           console.log("[Realtime] Message:", message.type);
         },

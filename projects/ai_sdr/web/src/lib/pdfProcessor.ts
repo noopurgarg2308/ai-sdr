@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import { ingestCompanyDoc } from "./rag";
 import { processImageAsset } from "./imageProcessor";
+import { getOpenAIKeyForCompany } from "./openai";
 import { addMediaAsset } from "./media";
 import type { MediaAsset } from "@prisma/client";
 import * as fs from "fs";
@@ -291,6 +292,9 @@ export async function processPDFAsset(
       throw new Error(`PDF file not found at: ${filePath}`);
     }
 
+    // Get OpenAI key for company (BYOK or platform - never fall back to platform key for BYOK)
+    const openaiApiKey = await getOpenAIKeyForCompany(asset.companyId);
+
     // Extract text from PDF
     const text = await extractTextFromPDF(filePath);
 
@@ -305,6 +309,7 @@ export async function processPDFAsset(
       source: "pdf_extract",
       content: text,
       mediaAssetId: asset.id, // Link chunks to PDF media asset
+      openaiApiKey,
     });
 
     // Extract PDF pages as images (slides)
@@ -381,6 +386,7 @@ export async function processPDFAsset(
                 content: pageText,
                 mediaAssetId: slideAsset.id, // Link chunks to the slide
                 pageNumber: page.pageNumber,
+                openaiApiKey,
               });
               console.log(`[PDFProcessor] Created text document for page ${page.pageNumber} (linked to slide)`);
             } catch (docError) {

@@ -12,6 +12,7 @@
 import { prisma } from "./prisma";
 import { ingestCompanyDoc } from "./rag";
 import { addMediaAsset } from "./media";
+import { getOpenAIKeyForCompany } from "./openai";
 import { processImageAsset } from "./imageProcessor";
 import { crawlWebsite, type CrawledPage, type CrawlOptions } from "./websiteCrawler";
 import type { MediaAsset } from "@prisma/client";
@@ -75,6 +76,9 @@ export async function processWebsiteAsset(
       };
     }
 
+    // Get OpenAI key for company (BYOK or platform - never fall back to platform key for BYOK)
+    const openaiApiKey = await getOpenAIKeyForCompany(asset.companyId);
+
     // Check if we should force reindex (delete existing documents)
     if (options.forceReindex) {
       console.log(`[WebsiteProcessor] Force reindex: deleting existing website documents`);
@@ -123,6 +127,7 @@ export async function processWebsiteAsset(
           source: "website_page",
           content: page.text,
           mediaAssetId: asset.id, // Link to website source
+          openaiApiKey,
         });
 
         // Update document with URL and headings path

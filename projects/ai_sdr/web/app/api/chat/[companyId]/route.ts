@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { openai } from "@/lib/openai";
+import { getOpenAIForCompany } from "@/lib/openai";
 import { getCompanyConfigBySlug } from "@/lib/companies";
 import { buildSystemPrompt } from "@/lib/systemPrompt";
-import { toolDefinitions, dispatchToolCall } from "@/lib/tools";
+import { getToolDefinitions, dispatchToolCall } from "@/lib/tools";
 import { classifyAndLogConversation } from "@/lib/crm";
 import type { ChatRequest, ChatResponse, ChatMessage } from "@/types/chat";
 
@@ -17,8 +17,14 @@ export async function POST(
     // Load company config
     const config = await getCompanyConfigBySlug(companyId);
 
-    // Build system prompt
+    // Get OpenAI client for this company (BYOK or platform key)
+    const openai = await getOpenAIForCompany(config.id);
+
+    // Build system prompt (takes useVisuals into account)
     const systemPrompt = buildSystemPrompt(config);
+
+    // Tool definitions: exclude demo/visual tools when useVisuals is false
+    const toolDefinitions = getToolDefinitions(config.useVisuals ?? false);
 
     // Prepare messages for OpenAI
     const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
@@ -130,13 +136,14 @@ export async function POST(
       console.log(`[Chat API] Visual assets:`, visualAssets.map((v: any) => ({ type: v.type, title: v.title, url: v.url })));
     }
     
+    const useVisuals = config.useVisuals ?? false;
     const response: ChatResponse = {
       sessionId,
       reply,
-      demoClipUrl,
+      demoClipUrl: useVisuals ? demoClipUrl : undefined,
       showMeetingPrompt,
       meetingLink,
-      visualAssets: visualAssets.length > 0 ? visualAssets : undefined,
+      visualAssets: useVisuals && visualAssets.length > 0 ? visualAssets : undefined,
     };
 
     // Log every conversation (fire-and-forget): classify as lead or not, extract contact info
@@ -144,7 +151,7 @@ export async function POST(
       ...body.messages.map((m) => ({ role: m.role, content: m.content })),
       { role: "assistant" as const, content: reply.content },
     ];
-    classifyAndLogConversation(config.id, sessionId, fullMessages).catch(() => {});
+    classifyAndLogConversation(config.id, sessionId, fullMessages, openai).catch(() => {});
 
     return NextResponse.json(response);
   } catch (error) {

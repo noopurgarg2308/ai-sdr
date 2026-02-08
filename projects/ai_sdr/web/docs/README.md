@@ -39,6 +39,7 @@ This folder and the project root contain all documentation for the AI SDR platfo
 
 | File | Type | What it covers |
 |------|------|----------------|
+| **DIRECTORY_STRUCTURE.md** | Reference | Full directory structure with one-line description per file; **keep updated as the project evolves**. |
 | **COMPLETE_SYSTEM_DOCUMENTATION.md** | System doc | Full system: overview, architecture, content sources, pipelines, RAG, visuals, API, admin, DB schema, config, troubleshooting. |
 | **PDF_CHUNK_ARCHITECTURE.md** | Architecture | How PDFs are chunked and stored. |
 | **PDF_SLIDE_EXTRACTION.md** | Feature | Slide extraction from PDFs. |
@@ -72,6 +73,9 @@ This folder and the project root contain all documentation for the AI SDR platfo
 |------|------|----------------|
 | **CONVERSATION_LOGGING.md** | Feature guide | Conversation logging, AI classification, idle timeout, session lifecycle. |
 | **TAVUS_STATUS_CHECK.md** | Operations | How to check Tavus integration status. |
+| **TIER1_CLIENT_REQUIREMENTS.md** | Client-facing | Tier 1 BYOK: what clients must provide. |
+| **TIER1_BYOK_CLIENT_REQUIREMENTS.md** | Client-facing | Tier 1 BYOK: alternative client requirements doc. |
+| **TIER1_CLIENT_IMPLEMENTATION_GUIDE_INTERNAL.md** | Internal | Tier 1 BYOK: steps to onboard a client; no fallback to platform key. |
 
 ### Resources & reference
 
@@ -102,11 +106,13 @@ This folder and the project root contain all documentation for the AI SDR platfo
 ## Quick map by topic
 
 - **Getting started:** README.md, SETUP.md, QUICK_REFERENCE.md  
+- **Directory structure:** docs/DIRECTORY_STRUCTURE.md (update when adding/removing files)  
 - **Conversation logging & session:** docs/CONVERSATION_LOGGING.md  
 - **Realtime voice:** REALTIME_API.md, VOICE_FEATURES.md  
 - **Tavus (video avatar):** TAVUS_INTEGRATION_COMPLETE.md, TAVUS_INTEGRATION_ANALYSIS.md, docs/TAVUS_STATUS_CHECK.md  
 - **RAG & search:** RAG_IMPLEMENTATION.md, HYBRID_RAG_ARCHITECTURE.md, HYBRID_SEARCH_SETUP.md  
 - **Multimodal & visuals:** MULTIMODAL_QUICKSTART.md, MULTIMODAL_CONTENT.md, VISUAL_CONTENT.md, docs/PDF_*.md, docs/WEBSITE_*.md  
 - **Full system:** docs/COMPLETE_SYSTEM_DOCUMENTATION.md, IMPLEMENTATION_SUMMARY.md  
+- **Tier 1 BYOK:** docs/TIER1_CLIENT_REQUIREMENTS.md, docs/TIER1_CLIENT_IMPLEMENTATION_GUIDE_INTERNAL.md  
 - **Testing/debug:** docs/TESTING_GUIDE.md, docs/*_TEST_QUERIES.md, docs/DEBUG_*.md, docs/WEBSITE_IMAGES_FIX.md  
 - **Costs & ops:** COST_MONITORING.md, docs/TAVUS_STATUS_CHECK.md  

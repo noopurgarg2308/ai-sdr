@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getOpenAIKeyForCompany } from "@/lib/openai";
 
 /**
  * Generate a temporary session token for OpenAI Realtime API
- * This keeps the API key secure on the server side
+ * Uses company's BYOK key when billingTier="byok", otherwise platform key.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -15,13 +16,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // In production, use OpenAI Realtime ephemeral tokens (realtime-sessions API)
-    // so the client never sees your API key. For dev, we return the key server-side only.
-    const apiKey = process.env.OPENAI_API_KEY;
+    // Get OpenAI key for company (BYOK or platform)
+    const apiKey = await getOpenAIKeyForCompany(companyId);
 
     if (!apiKey) {
       return NextResponse.json(
-        { error: "OpenAI API key not configured" },
+        { error: "OpenAI API key not configured for this company" },
         { status: 500 }
       );
     }
@@ -32,8 +32,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("[Realtime Session] Error:", error);
+    const message = error instanceof Error ? error.message : "Failed to create session";
     return NextResponse.json(
-      { error: "Failed to create session" },
+      { error: message },
       { status: 500 }
     );
   }

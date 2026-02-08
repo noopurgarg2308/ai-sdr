@@ -34,6 +34,7 @@ export interface CompanyConfig {
     canShowDemoClips: boolean;
     canLogLeads: boolean;
   };
+  useVisuals?: boolean; // Show images, demos, documents, videos. Default false for MVP.
   actionTemplates?: {
     name: string;
     description: string;

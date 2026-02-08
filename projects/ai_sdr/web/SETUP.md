@@ -82,6 +82,8 @@ Visit http://localhost:3000 to see the app.
    - Book meetings
    - Every conversation is logged to `data/conversations/{companyId}.jsonl` (classified as lead or visitor)
 
+4. **MVP modes:** Text and Realtime Voice are available by default. Images, demos, and videos are **OFF by default** — tick "Show images, demos & videos" per company to enable. Tavus Video Avatar is **optional per company** — expand "Tavus Video Avatar" to enable.
+
 ### Embed on Your Website
 
 Copy the embed code from the admin page:
@@ -96,6 +98,8 @@ Copy the embed code from the admin page:
 ```
 
 ## Project Structure
+
+For the full directory structure with one-line descriptions of every file, see [docs/DIRECTORY_STRUCTURE.md](docs/DIRECTORY_STRUCTURE.md). Summary:
 
 ```
 /src

@@ -1,6 +1,6 @@
 import type { CompanyId } from "@/types/chat";
 import { prisma } from "./prisma";
-import { openai } from "./openai";
+import { openai, getOpenAIClient } from "./openai";
 import type { Document } from "@prisma/client";
 
 // Cache for PDF-to-slide lookups to avoid repeated queries
@@ -63,11 +63,14 @@ export async function ingestCompanyDoc(options: {
   content: string;
   mediaAssetId?: string; // Link to source media asset (for slides, images, etc.)
   pageNumber?: number; // For PDF pages/slides
+  openaiApiKey?: string; // Company BYOK key when available
 }): Promise<Document> {
-  const { companyId, title, source, content, mediaAssetId, pageNumber } = options;
+  const { companyId, title, source, content, mediaAssetId, pageNumber, openaiApiKey } = options;
   
   console.log(`[RAG] Ingesting document "${title}" for company ${companyId}`);
   
+  const client = openaiApiKey ? getOpenAIClient(openaiApiKey) : openai;
+
   // Create the document
   const document = await prisma.document.create({
     data: {
@@ -84,7 +87,7 @@ export async function ingestCompanyDoc(options: {
   console.log(`[RAG] Created ${chunks.length} chunks`);
   
   // Get embeddings for all chunks in batch
-  const embeddingResponse = await openai.embeddings.create({
+  const embeddingResponse = await client.embeddings.create({
     model: "text-embedding-3-small",
     input: chunks,
   });
@@ -125,6 +128,7 @@ export async function searchKnowledge(options: {
   companyId: string;
   query: string;
   limit?: number;
+  openaiApiKey?: string; // Company BYOK key when available
 }): Promise<Array<{
   content: string;
   score: number;
@@ -132,13 +136,15 @@ export async function searchKnowledge(options: {
   mediaAssetId?: string;
   pageNumber?: number;
 }>> {
-  const { companyId, query, limit = 5 } = options;
+  const { companyId, query, limit = 5, openaiApiKey } = options;
+  
+  const client = openaiApiKey ? getOpenAIClient(openaiApiKey) : openai;
   
   console.log(`[RAG] ========== STARTING SEARCH ==========`);
   console.log(`[RAG] Searching knowledge for company ${companyId}, query: "${query}"`);
   
   // Get embedding for the query
-  const queryEmbeddingResponse = await openai.embeddings.create({
+  const queryEmbeddingResponse = await client.embeddings.create({
     model: "text-embedding-3-small",
     input: query,
   });

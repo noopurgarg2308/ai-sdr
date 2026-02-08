@@ -8,6 +8,15 @@ import { searchMediaAssets, type MediaType, type MediaCategory } from "./media";
 
 // Export tool definitions from separate file to avoid client-side imports
 export { toolDefinitions } from "./toolDefinitions";
+import { toolDefinitions as allToolDefinitions } from "./toolDefinitions";
+
+/** Tool definitions filtered by useVisuals. When false, exclude get_demo_clip and show_visual. */
+export function getToolDefinitions(useVisuals: boolean) {
+  if (useVisuals) return allToolDefinitions;
+  return allToolDefinitions.filter(
+    (t) => t.function.name !== "get_demo_clip" && t.function.name !== "show_visual"
+  );
+}
 
 // Keep the old definitions here for reference but commented out
 const _toolDefinitionsOld = [
@@ -155,6 +164,15 @@ export async function dispatchToolCall(
   args: any
 ): Promise<any> {
   console.log(`[Tools] Dispatching tool call: ${name}`, args);
+
+  const { getCompanyConfigById, getCompanyConfigBySlug } = await import("./companies");
+  let config;
+  try {
+    config = await getCompanyConfigById(companyId);
+  } catch {
+    config = await getCompanyConfigBySlug(companyId);
+  }
+  const useVisuals = config.useVisuals ?? false;
 
   switch (name) {
     case "search_knowledge": {
@@ -387,22 +405,21 @@ export async function dispatchToolCall(
           mediaAssetId: r.mediaAssetId, // Include media asset ID if linked
           pageNumber: r.pageNumber, // Include page number if available
         })),
-        linkedVisuals: [
-          ...filteredHybridVisuals,
-          ...linkedMediaAssets, // Add media assets linked from search results
-        ],
-        visualResults: hybridResults.visualResults,
+        linkedVisuals: useVisuals ? [...filteredHybridVisuals, ...linkedMediaAssets] : [],
+        visualResults: useVisuals ? hybridResults.visualResults : [],
         metadata: hybridResults.metadata, // Include search metadata
       };
     }
 
     case "get_demo_clip":
+      if (!useVisuals) return { url: null };
       return await getDemoClip(companyId, args.persona as Persona, args.intent);
 
     case "create_meeting_link":
       return await createMeetingLink(args.timezone, args.persona);
 
     case "show_visual": {
+      if (!useVisuals) return { visuals: [] };
       const results = await searchMediaAssets({
         companyId,
         query: args.query,

@@ -55,6 +55,7 @@ Your multi-tenant AI SDR SaaS platform is now fully implemented with multimodal 
 - Various other utility scripts for testing and debugging
 
 ### Documentation
+- `docs/DIRECTORY_STRUCTURE.md` - **NEW**: Full directory structure with one-line descriptions (keep updated as project evolves)
 - `README.md` - **UPDATED**: Comprehensive system overview
 - `SETUP.md` - Setup and usage guide
 - `docs/COMPLETE_SYSTEM_DOCUMENTATION.md` - **NEW**: Complete system documentation

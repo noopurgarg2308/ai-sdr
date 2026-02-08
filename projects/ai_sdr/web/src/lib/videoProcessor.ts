@@ -1,4 +1,4 @@
-import { openai } from "./openai";
+import { openai, getOpenAIClient } from "./openai";
 import { prisma } from "./prisma";
 import { ingestCompanyDoc } from "./rag";
 import * as fs from "fs";
@@ -179,7 +179,10 @@ async function extractAudioFromVideo(videoPath: string): Promise<string> {
 /**
  * Transcribe video audio using OpenAI Whisper with retry logic
  */
-export async function transcribeVideo(videoPath: string): Promise<{
+export async function transcribeVideo(
+  videoPath: string,
+  openaiApiKey?: string
+): Promise<{
   fullText: string;
   segments: TranscriptSegment[];
 }> {
@@ -219,8 +222,9 @@ export async function transcribeVideo(videoPath: string): Promise<{
 
       // Create a fresh read stream for each attempt (use audioPath if extracted, otherwise videoPath)
       const fileStream = fs.createReadStream(audioPath);
+      const client = openaiApiKey ? getOpenAIClient(openaiApiKey) : openai;
 
-      const transcription = await openai.audio.transcriptions.create(
+      const transcription = await client.audio.transcriptions.create(
         {
           file: fileStream as any,
           model: "whisper-1",
@@ -309,10 +313,12 @@ export async function transcribeVideo(videoPath: string): Promise<{
  */
 export async function analyzeFrames(
   framePaths: string[],
-  transcriptSegments: TranscriptSegment[]
+  transcriptSegments: TranscriptSegment[],
+  openaiApiKey?: string
 ): Promise<FrameDescription[]> {
   console.log(`[VideoProcessor] Analyzing ${framePaths.length} frames with GPT-4 Vision`);
 
+  const client = openaiApiKey ? getOpenAIClient(openaiApiKey) : openai;
   const descriptions: FrameDescription[] = [];
 
   for (let i = 0; i < framePaths.length; i++) {
@@ -330,7 +336,7 @@ export async function analyzeFrames(
       const frameBuffer = fs.readFileSync(framePath);
       const base64Frame = `data:image/png;base64,${frameBuffer.toString("base64")}`;
 
-      const response = await openai.chat.completions.create({
+      const response = await client.chat.completions.create({
         model: "gpt-4o",
         messages: [
           {
@@ -433,14 +439,18 @@ export async function processVideoAsset(mediaAssetId: string): Promise<{
       throw new Error(`Video file not found: ${videoPath}`);
     }
 
+    // Get OpenAI key for company (BYOK or platform - never fall back to platform key for BYOK)
+    const { getOpenAIKeyForCompany } = await import("./openai");
+    const openaiApiKey = await getOpenAIKeyForCompany(asset.companyId);
+
     // 1. Transcribe audio
-    const { fullText: transcript, segments } = await transcribeVideo(videoPath);
+    const { fullText: transcript, segments } = await transcribeVideo(videoPath, openaiApiKey);
 
     // 2. Extract keyframes (every 10 seconds)
     const framePaths = await extractKeyframes(videoPath, 10);
 
     // 3. Analyze frames with GPT-4 Vision
-    const frameDescriptions = await analyzeFrames(framePaths, segments);
+    const frameDescriptions = await analyzeFrames(framePaths, segments, openaiApiKey);
 
     // 4. Combine transcript and frame descriptions
     const combinedText = combineTranscriptAndFrames(transcript, segments, frameDescriptions);
@@ -451,6 +461,7 @@ export async function processVideoAsset(mediaAssetId: string): Promise<{
       title: `${asset.title} (Video Transcript)`,
       source: "whisper",
       content: combinedText,
+      openaiApiKey,
     });
 
     // 6. Link document to media asset

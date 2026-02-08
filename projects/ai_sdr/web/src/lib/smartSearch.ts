@@ -37,9 +37,10 @@ export async function intelligentSearch(
   options?: {
     includeVisuals?: boolean;
     limit?: number;
+    openaiApiKey?: string;
   }
 ): Promise<SmartSearchResult> {
-  const { includeVisuals = true, limit = 5 } = options || {};
+  const { includeVisuals = true, limit = 5, openaiApiKey } = options || {};
 
   console.log(`[SmartSearch] Searching for: "${query}" in company ${companyId}`);
 
@@ -48,6 +49,7 @@ export async function intelligentSearch(
     companyId,
     query,
     limit,
+    openaiApiKey,
   });
 
   console.log(`[SmartSearch] RAG found ${ragResults.length} text results`);

@@ -1,5 +1,6 @@
 import { intelligentSearch } from "./smartSearch";
 import { prisma } from "./prisma";
+import { getOpenAIKeyForCompany } from "./openai";
 import type { CompanyId } from "@/types/chat";
 
 export interface UnifiedSearchResult {
@@ -95,7 +96,8 @@ async function searchTavusKB(
 async function searchYourRAG(
   companyId: string,
   query: string,
-  limit: number
+  limit: number,
+  openaiApiKey?: string
 ): Promise<{
   textResults: Array<{
     content: string;
@@ -112,6 +114,7 @@ async function searchYourRAG(
   const results = await intelligentSearch(companyId, query, {
     includeVisuals: true,
     limit,
+    openaiApiKey,
   });
 
   return {
@@ -270,6 +273,9 @@ export async function hybridSearch(
   const { limit = 5, preferFast = false } = options || {};
   const startTime = Date.now();
 
+  // Get OpenAI key for company (BYOK or platform - never fall back to platform key for BYOK)
+  const openaiApiKey = await getOpenAIKeyForCompany(companyId);
+
   // Get company configuration
   const company = await prisma.company.findUnique({
     where: { id: companyId },
@@ -310,7 +316,7 @@ export async function hybridSearch(
     }
 
     // Only your RAG
-    const ragResults = await searchYourRAG(companyId, query, limit);
+    const ragResults = await searchYourRAG(companyId, query, limit, openaiApiKey);
     const latency = Date.now() - startTime;
 
     return {
@@ -347,7 +353,7 @@ export async function hybridSearch(
 
   // Execute based on strategy
   if (finalStrategy === "your-rag-only") {
-    const ragResults = await searchYourRAG(companyId, query, limit);
+    const ragResults = await searchYourRAG(companyId, query, limit, openaiApiKey);
     const latency = Date.now() - startTime;
 
     return {
@@ -397,7 +403,7 @@ export async function hybridSearch(
     }
 
     // Fallback to RAG
-    const ragResults = await searchYourRAG(companyId, query, limit);
+    const ragResults = await searchYourRAG(companyId, query, limit, openaiApiKey);
     const latency = Date.now() - startTime;
 
     return {
@@ -424,7 +430,7 @@ export async function hybridSearch(
   // Default: Parallel search (search both and merge)
   const [tavusResults, ragResults] = await Promise.all([
     searchTavusKB(companyId, query, limit * 2), // Get more, will merge
-    searchYourRAG(companyId, query, limit * 2),
+    searchYourRAG(companyId, query, limit * 2, openaiApiKey),
   ]);
 
   // Merge and rank

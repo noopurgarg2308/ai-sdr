@@ -1,4 +1,4 @@
-import { openai } from "./openai";
+import { openai, getOpenAIClient } from "./openai";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -36,18 +36,23 @@ function imageToBase64(imagePath: string): string {
 /**
  * Extract text and detailed description from an image using GPT-4 Vision
  */
-export async function extractTextFromImage(imageUrl: string): Promise<{
+export async function extractTextFromImage(
+  imageUrl: string,
+  openaiApiKey?: string
+): Promise<{
   text: string;
   confidence: number;
 }> {
   console.log(`[OCR] Extracting text from image: ${imageUrl}`);
+
+  const client = openaiApiKey ? getOpenAIClient(openaiApiKey) : openai;
 
   try {
     // Convert to base64 if local file
     const processedUrl = imageToBase64(imageUrl);
     console.log(`[OCR] Using ${processedUrl.startsWith("data:") ? "base64" : "URL"} format`);
 
-    const response = await openai.chat.completions.create({
+    const response = await client.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
@@ -101,12 +106,15 @@ Be comprehensive and detailed. Format as continuous text for search indexing.`,
  */
 export async function analyzeImage(
   imageUrl: string,
-  question: string
+  question: string,
+  openaiApiKey?: string
 ): Promise<string> {
   console.log(`[OCR] Analyzing image with question: ${question}`);
 
+  const client = openaiApiKey ? getOpenAIClient(openaiApiKey) : openai;
+
   try {
-    const response = await openai.chat.completions.create({
+    const response = await client.chat.completions.create({
       model: "gpt-4o", // Updated from deprecated gpt-4-vision-preview
       messages: [
         {

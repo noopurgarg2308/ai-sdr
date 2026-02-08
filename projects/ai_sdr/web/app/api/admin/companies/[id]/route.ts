@@ -22,7 +22,16 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(company);
+    // Mask API key for response (never send full key to client)
+    const masked = company.openaiApiKey
+      ? `${company.openaiApiKey.slice(0, 7)}...****`
+      : null;
+
+    return NextResponse.json({
+      ...company,
+      openaiApiKey: masked,
+      openaiApiKeyConfigured: !!company.openaiApiKey,
+    });
   } catch (error) {
     console.error("[Admin API] Error fetching company:", error);
     return NextResponse.json(
@@ -39,7 +48,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { slug, displayName, shortDescription, websiteUrl, config, ownerEmail } = body;
+    const { slug, displayName, shortDescription, websiteUrl, config, ownerEmail, useTavusVideo, tavusReplicaId, tavusPersonaId, useVisuals, billingTier, openaiApiKey } = body;
 
     const updateData: any = {};
     if (slug !== undefined) updateData.slug = slug;
@@ -48,6 +57,12 @@ export async function PUT(
     if (websiteUrl !== undefined) updateData.websiteUrl = websiteUrl;
     if (ownerEmail !== undefined) updateData.ownerEmail = ownerEmail;
     if (config !== undefined) updateData.config = config;
+    if (useTavusVideo !== undefined) updateData.useTavusVideo = Boolean(useTavusVideo);
+    if (tavusReplicaId !== undefined) updateData.tavusReplicaId = tavusReplicaId === "" ? null : tavusReplicaId;
+    if (tavusPersonaId !== undefined) updateData.tavusPersonaId = tavusPersonaId === "" ? null : tavusPersonaId;
+    if (useVisuals !== undefined) updateData.useVisuals = Boolean(useVisuals);
+    if (billingTier !== undefined) updateData.billingTier = billingTier === "" ? null : billingTier;
+    if (openaiApiKey !== undefined) updateData.openaiApiKey = openaiApiKey === "" ? null : openaiApiKey;
 
     const company = await prisma.company.update({
       where: { id },

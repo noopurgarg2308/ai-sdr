@@ -1,5 +1,6 @@
 import { appendFile, mkdir } from "fs/promises";
 import path from "path";
+import type OpenAI from "openai";
 import { openai } from "./openai";
 import type { CompanyId } from "@/types/chat";
 
@@ -68,13 +69,14 @@ export async function logLeadToCRM(payload: LeadPayload): Promise<{ success: boo
  * All fields can be blank if not mentioned in the conversation.
  */
 async function classifyConversation(
-  messages: Array<{ role: string; content: string }>
+  messages: Array<{ role: string; content: string }>,
+  client: OpenAI = openai
 ): Promise<Omit<ConversationEntry, "sessionId" | "companyId" | "messageCount" | "loggedAt">> {
   const conversationText = messages
     .map((m) => `${m.role}: ${m.content}`)
     .join("\n\n");
 
-  const completion = await openai.chat.completions.create({
+  const completion = await client.chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
       {
@@ -137,10 +139,11 @@ Leave fields null or empty if not mentioned. Never invent information.`,
 export async function classifyAndLogConversation(
   companyId: CompanyId,
   sessionId: string,
-  messages: Array<{ role: string; content: string }>
+  messages: Array<{ role: string; content: string }>,
+  client?: OpenAI
 ): Promise<void> {
   try {
-    const classification = await classifyConversation(messages);
+    const classification = await classifyConversation(messages, client ?? openai);
 
     const entry: ConversationEntry = {
       sessionId,
