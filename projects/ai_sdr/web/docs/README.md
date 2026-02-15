@@ -67,6 +67,12 @@ This folder and the project root contain all documentation for the AI SDR platfo
 | **DEBUG_NO_IMAGES.md** | Debugging | Debugging when images don’t show. |
 | **WEBSITE_IMAGES_FIX.md** | Debugging | Fixes for website image issues. |
 
+### Client admin & BYOK
+
+| File | Type | What it covers |
+|------|------|----------------|
+| **CLIENT_ADMIN_PORTAL.md** | Feature guide | Client admin portal: setup, routes, field ownership, onboarding flow. |
+
 ### Integrations & status
 
 | File | Type | What it covers |
@@ -114,5 +120,6 @@ This folder and the project root contain all documentation for the AI SDR platfo
 - **Multimodal & visuals:** MULTIMODAL_QUICKSTART.md, MULTIMODAL_CONTENT.md, VISUAL_CONTENT.md, docs/PDF_*.md, docs/WEBSITE_*.md  
 - **Full system:** docs/COMPLETE_SYSTEM_DOCUMENTATION.md, IMPLEMENTATION_SUMMARY.md  
 - **Tier 1 BYOK:** docs/TIER1_CLIENT_REQUIREMENTS.md, docs/TIER1_CLIENT_IMPLEMENTATION_GUIDE_INTERNAL.md  
+- **Client admin portal:** docs/CLIENT_ADMIN_PORTAL.md  
 - **Testing/debug:** docs/TESTING_GUIDE.md, docs/*_TEST_QUERIES.md, docs/DEBUG_*.md, docs/WEBSITE_IMAGES_FIX.md  
 - **Costs & ops:** COST_MONITORING.md, docs/TAVUS_STATUS_CHECK.md  

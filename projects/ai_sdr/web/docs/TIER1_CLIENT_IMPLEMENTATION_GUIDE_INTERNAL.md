@@ -4,6 +4,23 @@ This document describes the steps required to onboard a Tier 1 (BYOK) client. **
 
 ---
 
+## Onboarding Flow Overview
+
+| Step | Who | Action |
+|------|-----|--------|
+| 1 | **You (super admin)** | Create the company in `/admin/companies` (slug, display name, short description, etc.) |
+| 2 | **You** | Ask the customer for the email of one employee who will manage the AI SDR |
+| 3 | **You** | In **Create Client Admin User** (top of `/admin/companies`): select company, enter email and password, click Create. Or run `npx tsx scripts/createClientAdminUser.ts <email> <password> <companyId>` |
+| 4 | **You** | Send the employee: portal URL, their email, and temporary password (use a secure channel) |
+| 5 | **Employee** | Logs in at `/client-admin/login` |
+| 6 | **You** | Set BYOK and the client’s OpenAI API key in admin (Tier 1 BYOK section). Employee can test a key in API Keys before you set it. |
+| 7 | **Employee** | In **Content**: adds product summary, company description, website URL to crawl, uploads PDFs |
+| 8 | **Employee** | In **Embed Code**: copies the embed snippet for their website |
+
+**Note:** Password change/reset flow is not yet implemented. For now, share the temporary password securely and advise the employee to keep it safe.
+
+---
+
 ## Prerequisites
 
 - Access to the Admin UI (`/admin/companies`)
@@ -83,6 +100,19 @@ This document describes the steps required to onboard a Tier 1 (BYOK) client. **
 
 ---
 
+## Alternative: Client Self-Service Portal
+
+If the client will use the **Client Admin Portal**:
+
+1. **You** create the company (Step 1 above).
+2. **You** create a client admin user: `npx tsx scripts/createClientAdminUser.ts <employee-email> <temp-password> <companyId>`
+3. **You** send the employee the portal URL, email, and password.
+4. **Employee** logs in and does Steps 6–8 from the flow overview (API keys, content, embed code) themselves.
+
+See [Client Admin Portal](CLIENT_ADMIN_PORTAL.md) for portal setup and routes.
+
+---
+
 ## Troubleshooting
 
 | Issue | Action |
@@ -110,7 +140,11 @@ This document describes the steps required to onboard a Tier 1 (BYOK) client. **
 | Item | Location |
 |------|----------|
 | Admin Companies | `/admin/companies` |
+| Client Admin Portal | `/client-admin/login` |
 | BYOK section | Per company, expand "Tier 1 BYOK" |
 | Company Media | `/admin/companies/[id]/media` |
 | Widget (voice) | `/widget/[slug]` |
 | Widget (text) | `/widget-text/[slug]` |
+| Create user | Admin portal: **Create Client Admin User** form at top of `/admin/companies` |
+| Create user script | `npx tsx scripts/createClientAdminUser.ts <email> <password> <companyId>` |
+| List companies | `npx tsx scripts/listCompanies.ts` |

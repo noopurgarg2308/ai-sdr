@@ -10,10 +10,24 @@ datasource db {
   url      = "file:./dev.db"
 }
 
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([email])
+}
+
 model Company {
   id               String       @id @default(cuid())
   slug             String       @unique
   displayName      String
+  users            User[]
   shortDescription String
   websiteUrl       String?
   config           Json

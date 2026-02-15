@@ -16,6 +16,7 @@
 | `postcss.config.mjs` | PostCSS config for Tailwind |
 | `tsconfig.json` | TypeScript config |
 | `next-env.d.ts` | Next.js TypeScript declarations |
+| `middleware.ts` | Next.js middleware; protects /client-admin/* (redirects to login) |
 | `README.md` | Project overview, features, quick start |
 | `SETUP.md` | Setup and usage guide |
 | `IMPLEMENTATION_SUMMARY.md` | What’s built: files, features, API, checklist |
@@ -46,8 +47,19 @@
 
 | File | Description |
 |------|-------------|
-| `admin/companies/page.tsx` | Company list, create, manage; website sources; embed code; Tier 1 BYOK config |
+| `admin/companies/page.tsx` | Company list, create, manage; website sources; embed code; Tier 1 BYOK config; Create Client Admin User form |
 | `admin/companies/[id]/media/page.tsx` | Company media management (upload, view, crawl) |
+
+### `app/client-admin/` – Client Admin Portal (authenticated)
+
+| File | Description |
+|------|-------------|
+| `client-admin/layout.tsx` | Client portal layout (auth, nav) |
+| `client-admin/login/page.tsx` | Client portal login |
+| `client-admin/page.tsx` | Client portal dashboard |
+| `client-admin/api-keys/page.tsx` | API key management, validation |
+| `client-admin/content/page.tsx` | Product summary, website, PDF upload |
+| `client-admin/embed/page.tsx` | Embed code |
 
 ### `app/api/` – API Routes
 
@@ -62,6 +74,13 @@
 | `api/tavus/tool/route.ts` | Tavus tool execution (alternative endpoint) |
 | `api/admin/companies/route.ts` | GET list, POST create companies |
 | `api/admin/companies/[id]/route.ts` | GET, PUT, DELETE single company; PUT accepts useTavusVideo, tavusReplicaId, tavusPersonaId, billingTier, openaiApiKey |
+| `api/admin/client-admin-users/route.ts` | POST create client admin user (companyId, email, password) |
+| `api/auth/[...nextauth]/route.ts` | NextAuth handler |
+| `api/client-admin/company/route.ts` | GET/PUT company (scoped to session; PUT accepts only client-editable fields: productSummary, shortDescription, displayName, websiteUrl) |
+| `api/client-admin/validate-key/route.ts` | Test OpenAI API key |
+| `api/client-admin/upload/route.ts` | PDF upload (scoped) |
+| `api/client-admin/website/route.ts` | Add website, list sources |
+| `api/client-admin/website/[sourceId]/crawl/route.ts` | Trigger crawl, get status |
 | `api/admin/companies/[id]/media/route.ts` | Company media assets |
 | `api/admin/companies/[id]/websites/[sourceId]/crawl/route.ts` | Trigger website crawl, get crawl status |
 | `api/admin/media/upload/route.ts` | PDF upload; website source creation |
@@ -92,7 +111,7 @@
 | `VideoPlayer.tsx` | Video playback component |
 | `WidgetChat.tsx` | Base chat widget (reusable) |
 | `WidgetChatText.tsx` | Text chat with visuals, demo, meeting; idle timeout |
-| `WidgetChatRealtime.tsx` | Realtime voice chat; idle timeout; log on disconnect |
+| `WidgetChatRealtime.tsx` | Realtime voice chat; natural hands-free flow; auto-start recording; 15s idle timeout; log on disconnect |
 | `WidgetChatTavus.tsx` | Tavus video avatar chat |
 | `WidgetChatUnified.tsx` | Unified widget (mode switcher); Tavus video only when company has useTavusVideo) |
 
@@ -120,7 +139,9 @@
 | `ocr.ts` | OCR abstraction layer |
 | `videoProcessor.ts` | Video processing (frames, transcription) |
 | `queue.ts` | Async processing queue (PDF, website jobs) |
-| `realtime.ts` | RealtimeClient: WebSocket, audio, tools |
+| `realtime.ts` | RealtimeClient: WebSocket, audio, tools, onUserAudio for idle detection |
+| `auth.ts` | NextAuth config (Credentials provider for client admin) |
+| `clientAdmin.ts` | requireClientAdminCompanyId for API auth |
 | `tavus.ts` | Tavus API client (personas, sessions) |
 
 ### `src/types/`
@@ -145,6 +166,8 @@
 | `migrations/20251204231018_add_tavus_fields/migration.sql` | Tavus fields |
 | `migrations/20251229081243_add_website_support/migration.sql` | Website support |
 | `migrations/20260208030501_add_use_visuals/migration.sql` | useVisuals (images/demos off by default) |
+| `migrations/20260208035312_add_byok_openai_key/migration.sql` | BYOK billing tier, OpenAI API key |
+| `migrations/20260209000000_add_client_admin_user/migration.sql` | User model for client admin portal |
 
 ---
 
@@ -153,6 +176,10 @@
 | File | Description |
 |------|-------------|
 | `listCompanies.ts` | List all companies |
+| `createClientAdminUser.ts` | Create client admin user (email, password, companyId) |
+| `listClientAdminUsers.ts` | List client admin users (debugging) |
+| `resetClientAdminPassword.ts` | Reset password for existing client admin user |
+| `verifyClientAdminPassword.ts` | Verify password for client admin user (debug login issues) |
 | `createWebsiteSource.ts` | Create website source for a company |
 | `linkWebsiteImagesToChunks.ts` | Link website images to chunks |
 | `seedHypersonixDocs.ts` | Seed Hypersonix docs |
@@ -254,6 +281,7 @@
 | `TIER1_CLIENT_REQUIREMENTS.md` | Tier 1 BYOK: what clients must provide |
 | `TIER1_BYOK_CLIENT_REQUIREMENTS.md` | Tier 1 BYOK: client requirements (alternative) |
 | `TIER1_CLIENT_IMPLEMENTATION_GUIDE_INTERNAL.md` | Tier 1 BYOK: internal onboarding steps |
+| `CLIENT_ADMIN_PORTAL.md` | Client admin portal setup and usage |
 | `COMPANIES_WITH_PUBLIC_PDFS.md` | Companies with public PDFs |
 | `AIRBNB_RESOURCES.md` | Airbnb-related resources |
 | `DOWNLOAD_INSTRUCTIONS.md` | Download instructions |

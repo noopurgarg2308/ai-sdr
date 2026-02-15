@@ -71,39 +71,38 @@ http://localhost:3000/widget/hypersonix
 ### 3. Start Voice Conversation
 1. Click **"Connect & Start Voice Chat"**
 2. Allow microphone access when prompted
-3. Click **"Start Speaking"**
-4. Talk naturally - the AI responds in real-time!
+3. **Just speak naturally** — the mic is always on, no buttons to press. The AI detects when you pause and responds automatically.
+4. Click **"End Conversation"** when done.
 
 ## 🎨 User Interface
 
-### Connection Flow:
+### Connection Flow (Natural, Hands-Free):
 ```
 [Initial State]
-  ↓ Click "Connect"
+  ↓ Click "Connect & Start Voice Chat"
 [Connecting to OpenAI...]
   ↓
-[Connected - Ready]
-  ↓ Click "Start Speaking"
-[Recording Your Voice] (Red pulsing indicator)
-  ↓ AI detects you finished speaking
+[Connected + Recording Automatically]
+  ↓ Mic is always on — just speak
+[User speaks]
+  ↓ Server VAD detects ~600ms silence
 [AI Responding] (Blue pulsing indicator)
   ↓ Response complete
-[Ready for Next Question]
+[Ready for Next Question] (no button press needed)
+  ↓ User speaks again, or clicks "End Conversation"
 ```
 
 ### Visual Indicators:
-- **Green Button** - Start Speaking (ready to listen)
-- **Red Pulsing Button** - Recording (listening to you)
-- **Red Dot + "Listening..."** - Active voice input
+- **Green "Listening..."** - Mic active, just speak naturally
 - **Blue Dot + "AI is speaking..."** - AI responding
-- **Gray "Disconnect" Button** - End session
+- **Red "End Conversation" Button** - Disconnect
 
 ### Idle Timeout & Session Lifecycle:
-- **1 minute** of no user speech → session ends automatically
+- **15 seconds** of no activity (user speech, AI response) → session ends automatically
 - **Message shown**: "Session ended due to inactivity. Connect again to continue."
-- **Conversation logged** to `data/conversations/{companyId}.jsonl` before disconnect
-- Activity resets the timer: user speech or clicking "Start Speaking"
-- Also logs when user clicks "Disconnect" or navigates away
+- **Conversation logged** before disconnect
+- Activity resets the timer: user speech (via onUserAudio + transcript), AI audio, or assistant transcript
+- Does NOT disconnect while the AI is speaking
 
 ## 🔧 Technical Details
 

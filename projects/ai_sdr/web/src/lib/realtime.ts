@@ -19,6 +19,8 @@ export interface RealtimeOptions {
   onAudioDelta?: (audio: ArrayBuffer) => void;
   onTranscript?: (text: string, role: "user" | "assistant") => void;
   onFunctionCall?: (name: string, args: any) => Promise<any>;
+  /** Called when user audio is sent to server (for idle detection while speaking). Throttled to ~every 20 chunks. */
+  onUserAudio?: () => void;
 }
 
 export class RealtimeClient {
@@ -398,6 +400,9 @@ export class RealtimeClient {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
     if (audioData.byteLength === 0) return;
 
+    if (this.options.onUserAudio && this.sendChunkCount % 20 === 0) {
+      this.options.onUserAudio();
+    }
     this.totalBytesSent += audioData.byteLength;
     const base64Audio = this.arrayBufferToBase64(audioData);
     if (this.sendChunkCount === 0) {

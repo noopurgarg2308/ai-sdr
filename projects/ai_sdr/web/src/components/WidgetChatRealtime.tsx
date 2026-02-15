@@ -5,7 +5,7 @@ import type { ChatMessage } from "@/types/chat";
 import { RealtimeClient } from "@/lib/realtime";
 import { toolDefinitions } from "@/lib/toolDefinitions";
 
-const IDLE_TIMEOUT_MS = 60 * 1000; // 1 minute
+const IDLE_TIMEOUT_MS = 15 * 1000; // 15 seconds of no activity (user speech, AI response) = walked away
 
 interface WidgetChatProps {
   companyId: string;
@@ -16,7 +16,7 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
     {
       id: "initial",
       role: "assistant",
-      content: "Hi there! Click the microphone to start a voice conversation with me!",
+      content: "Hi there! Click connect to start. Once connected, just speak naturally—I'll respond when you pause. No buttons to press.",
       createdAt: new Date().toISOString(),
     },
   ]);
@@ -52,20 +52,51 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
     messagesRef.current = messages;
   }, [messages]);
 
-  // Idle timeout: if no user input for 1 min, show message and disconnect
+  const disconnect = useCallback((reason?: "idle") => {
+    const sid = sessionIdRef.current;
+    const msgs = messagesRef.current.filter((m) => m.content.trim());
+    if (sid && msgs.length > 0) {
+      fetch(`/api/chat/${companyId}/log-conversation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: sid,
+          messages: msgs.map((m) => ({ role: m.role, content: m.content })),
+        }),
+      }).catch((err) => console.warn("[Realtime] Log conversation failed:", err));
+    }
+
+    if (realtimeClientRef.current) {
+      realtimeClientRef.current.disconnect();
+      realtimeClientRef.current = null;
+    }
+    sessionIdRef.current = null;
+    setIsConnected(false);
+    setIsRecording(false);
+    setIsSpeaking(false);
+    if (reason === "idle") {
+      setError("Session ended due to inactivity. Connect again to continue.");
+    } else {
+      setError(undefined);
+    }
+  }, [companyId]);
+
+  // Idle timeout: if no user speech for 10s, assume they walked away and disconnect
+  // Do NOT disconnect while the AI is speaking (isSpeaking) — wait until they finish
   useEffect(() => {
     if (!isConnected) return;
 
     const interval = setInterval(() => {
+      if (isSpeaking) return; // AI is talking, don't disconnect
       const elapsed = Date.now() - lastActivityRef.current;
       if (elapsed >= IDLE_TIMEOUT_MS) {
         clearInterval(interval);
         disconnect("idle");
       }
-    }, 15000); // Check every 15 seconds
+    }, 2000); // Check every 2 seconds
 
     return () => clearInterval(interval);
-  }, [isConnected, disconnect]);
+  }, [isConnected, disconnect, isSpeaking]);
 
   // Cleanup on unmount: log conversation if any, then disconnect
   useEffect(() => {
@@ -145,11 +176,16 @@ CRITICAL: Always use the search_knowledge tool when answering questions about ${
           setIsRecording(false);
           setIsSpeaking(false);
         },
+        onUserAudio: () => {
+          lastActivityRef.current = Date.now(); // User is speaking — reset idle timer (transcript arrives later)
+        },
         onAudioDelta: () => {
           setIsSpeaking(true);
+          lastActivityRef.current = Date.now(); // AI is talking, user is listening — reset idle timer
         },
         onTranscript: (text, role) => {
           if (role === "user") lastActivityRef.current = Date.now();
+          if (role === "assistant") lastActivityRef.current = Date.now(); // User is listening, reset idle timer
 
           const newMessage: ChatMessage = {
             id: `msg_${Date.now()}_${Math.random()}`,
@@ -226,7 +262,17 @@ CRITICAL: Always use the search_knowledge tool when answering questions about ${
       lastActivityRef.current = Date.now();
       setIsConnected(true);
 
-      console.log("[Realtime] Connected successfully");
+      // Auto-start recording so it's always listening—server VAD auto-detects when user stops speaking
+      try {
+        await realtimeClientRef.current.startRecording();
+        setIsRecording(true);
+        setError(undefined);
+      } catch (micErr) {
+        console.error("[Realtime] Microphone error:", micErr);
+        setError("Microphone access denied or not available");
+      }
+
+      console.log("[Realtime] Connected and listening");
     } catch (err) {
       console.error("[Realtime] Initialization error:", err);
       setError(err instanceof Error ? err.message : "Failed to connect");
@@ -234,70 +280,13 @@ CRITICAL: Always use the search_knowledge tool when answering questions about ${
     }
   };
 
-  const startConversation = async () => {
-    lastActivityRef.current = Date.now();
-
-    if (!isConnected) {
-      await initializeRealtime();
-    }
-
-    if (realtimeClientRef.current) {
-      try {
-        await realtimeClientRef.current.startRecording();
-        setIsRecording(true);
-        setError(undefined);
-      } catch (err) {
-        console.error("[Realtime] Recording error:", err);
-        setError("Microphone access denied or not available");
-      }
-    }
-  };
-
-  const stopConversation = () => {
-    if (realtimeClientRef.current) {
-      // With server_vad enabled, the server already commits when it detects silence.
-      // Sending commit again here causes "buffer too small" because the buffer is already empty.
-      realtimeClientRef.current.stopRecording();
-      setIsRecording(false);
-    }
-  };
-
-  const disconnect = useCallback((reason?: "idle") => {
-    const sid = sessionIdRef.current;
-    const msgs = messagesRef.current.filter((m) => m.content.trim());
-    if (sid && msgs.length > 0) {
-      fetch(`/api/chat/${companyId}/log-conversation`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId: sid,
-          messages: msgs.map((m) => ({ role: m.role, content: m.content })),
-        }),
-      }).catch((err) => console.warn("[Realtime] Log conversation failed:", err));
-    }
-
-    if (realtimeClientRef.current) {
-      realtimeClientRef.current.disconnect();
-      realtimeClientRef.current = null;
-    }
-    sessionIdRef.current = null;
-    setIsConnected(false);
-    setIsRecording(false);
-    setIsSpeaking(false);
-    if (reason === "idle") {
-      setError("Session ended due to inactivity. Connect again to continue.");
-    } else {
-      setError(undefined);
-    }
-  }, [companyId]);
-
   return (
     <div className="flex flex-col h-full max-w-4xl mx-auto bg-white">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 shadow-lg flex-shrink-0">
         <h1 className="text-xl font-semibold">AI Sales Assistant (Voice)</h1>
         <p className="text-sm text-blue-100">
-          {isConnected ? "🟢 Connected - Click mic to talk" : "Click connect to start"}
+          {isConnected ? "🟢 Listening - Just speak naturally, I'll respond when you pause" : "Click connect to start"}
         </p>
       </div>
 
@@ -332,9 +321,9 @@ CRITICAL: Always use the search_knowledge tool when answering questions about ${
         {/* Status indicators */}
         {isRecording && (
           <div className="flex justify-center flex-col items-center gap-1">
-            <div className="bg-red-100 text-red-700 rounded-lg px-4 py-2 text-sm">
-              <span className="inline-block w-2 h-2 bg-red-600 rounded-full mr-2 animate-pulse"></span>
-              Listening... Speak, then click &quot;Stop Speaking&quot; to get a response.
+            <div className="bg-green-100 text-green-700 rounded-lg px-4 py-2 text-sm">
+              <span className="inline-block w-2 h-2 bg-green-600 rounded-full mr-2 animate-pulse"></span>
+              Listening... Just speak naturally. I&apos;ll respond when you pause.
             </div>
           </div>
         )}
@@ -513,37 +502,19 @@ CRITICAL: Always use the search_knowledge tool when answering questions about ${
               🎤 Connect & Start Voice Chat
             </button>
           ) : (
-            <>
-              {!isRecording ? (
-                <button
-                  onClick={startConversation}
-                  className="bg-green-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-green-700 transition-colors text-lg"
-                >
-                  🎤 Start Speaking
-                </button>
-              ) : (
-                <button
-                  onClick={stopConversation}
-                  className="bg-red-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-red-700 transition-colors text-lg animate-pulse"
-                >
-                  🔴 Stop Speaking
-                </button>
-              )}
-              
-              <button
-                onClick={disconnect}
-                className="bg-gray-600 text-white px-6 py-4 rounded-lg font-semibold hover:bg-gray-700 transition-colors"
-              >
-                Disconnect
-              </button>
-            </>
+            <button
+              onClick={() => disconnect()}
+              className="bg-red-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-red-700 transition-colors text-lg"
+            >
+              End Conversation
+            </button>
           )}
         </div>
         
         <p className="text-center text-sm text-gray-600 mt-3">
           {isConnected 
-            ? "Real-time voice conversation powered by OpenAI" 
-            : "Connect to start having a natural voice conversation"}
+            ? "Natural conversation—no buttons to press. Session ends after 15s of silence." 
+            : "Connect to start a hands-free voice conversation"}
         </p>
       </div>
     </div>

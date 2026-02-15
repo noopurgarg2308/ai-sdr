@@ -59,6 +59,14 @@ export default function AdminCompaniesPage() {
   const [byokForm, setByokForm] = useState<Record<string, { billingTier: string; openaiApiKey: string }>>({});
   const [savingBYOK, setSavingBYOK] = useState<Set<string>>(new Set());
 
+  // Client admin user form
+  const [clientAdminForm, setClientAdminForm] = useState({
+    companyId: "",
+    email: "",
+    password: "",
+  });
+  const [isCreatingClientAdmin, setIsCreatingClientAdmin] = useState(false);
+
   // Form state
   const [formData, setFormData] = useState({
     slug: "",
@@ -425,10 +433,107 @@ export default function AdminCompaniesPage() {
     }
   };
 
+  const handleCreateClientAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!clientAdminForm.companyId || !clientAdminForm.email || !clientAdminForm.password) {
+      setError("Company, email, and password are required");
+      return;
+    }
+    setIsCreatingClientAdmin(true);
+    setError(undefined);
+    setSuccess(undefined);
+    try {
+      const response = await fetch("/api/admin/client-admin-users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyId: clientAdminForm.companyId,
+          email: clientAdminForm.email.trim(),
+          password: clientAdminForm.password.trim(),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to create user");
+      }
+      setSuccess(`Client admin user ${data.user.email} created for ${data.user.companyDisplayName}. Login at ${data.loginUrl}`);
+      setClientAdminForm({ companyId: clientAdminForm.companyId, email: "", password: "" });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create user");
+    } finally {
+      setIsCreatingClientAdmin(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Company Management</h1>
+
+        {(error || success) && (
+          <div className={`mb-6 p-3 rounded ${
+            error ? "bg-red-100 border border-red-300 text-red-800" :
+            "bg-green-100 border border-green-300 text-green-800"
+          }`}>
+            {error || success}
+          </div>
+        )}
+
+        {/* Create Client Admin User */}
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h2 className="text-xl font-semibold mb-4">Create Client Admin User</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Create a user who can log in to the client admin portal for a specific company.
+          </p>
+          <form onSubmit={handleCreateClientAdmin} className="space-y-4 max-w-md">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Company *</label>
+              <select
+                required
+                value={clientAdminForm.companyId}
+                onChange={(e) => setClientAdminForm({ ...clientAdminForm, companyId: e.target.value })}
+                className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select a company...</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.displayName} ({c.slug})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email (username) *</label>
+              <input
+                type="email"
+                required
+                value={clientAdminForm.email}
+                onChange={(e) => setClientAdminForm({ ...clientAdminForm, email: e.target.value })}
+                placeholder="user@example.com"
+                className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
+              <input
+                type="password"
+                required
+                value={clientAdminForm.password}
+                onChange={(e) => setClientAdminForm({ ...clientAdminForm, password: e.target.value })}
+                placeholder="Temporary password"
+                className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">Share this with the user securely. They can log in at /client-admin/login.</p>
+            </div>
+            <button
+              type="submit"
+              disabled={isCreatingClientAdmin || companies.length === 0}
+              className="bg-blue-600 text-white px-6 py-2 rounded font-semibold hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {isCreatingClientAdmin ? "Creating..." : "Create Client Admin User"}
+            </button>
+          </form>
+        </div>
 
         {/* Website Source Management */}
         <div className="bg-white rounded-lg shadow p-6 mb-8">

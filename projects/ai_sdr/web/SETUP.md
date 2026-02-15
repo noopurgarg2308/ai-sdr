@@ -29,7 +29,13 @@ DATABASE_URL=postgresql://user:password@localhost:5432/ai_sdr_db
 
 # Meeting/Scheduling Link (optional)
 MEETING_BASE_URL=https://calendly.com/your-team/demo
+
+# Client Admin Portal (optional — for self-service client portal)
+NEXTAUTH_SECRET=your-random-secret-at-least-32-chars
+NEXTAUTH_URL=http://localhost:3000
 ```
+
+Generate NEXTAUTH_SECRET: `openssl rand -base64 32`
 
 ### 3. Set Up Database
 
