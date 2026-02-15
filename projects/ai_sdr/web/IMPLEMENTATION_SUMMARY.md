@@ -18,7 +18,7 @@ Your multi-tenant AI SDR SaaS platform is now fully implemented with multimodal 
 - `prisma.ts` - Singleton PrismaClient instance
 - `openai.ts` - OpenAI client configuration
 - `companies.ts` - Company data access functions
-- `systemPrompt.ts` - AI system prompt builder with visual content instructions
+- `systemPrompt.ts` - AI system prompt builder; short-first answers (2-3 lines), then offer details; visual content instructions
 - `rag.ts` - **Complete RAG implementation** with semantic search, ranking, and visual linking
 - `pdfProcessor.ts` - PDF text extraction, slide generation, OCR processing
 - `websiteCrawler.ts` - **NEW**: Website crawling with HTML parsing and link following

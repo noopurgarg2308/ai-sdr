@@ -122,7 +122,7 @@
 | `prisma.ts` | Prisma client singleton |
 | `openai.ts` | OpenAI client (lazy init) |
 | `companies.ts` | Company config and data access |
-| `systemPrompt.ts` | AI system prompt builder |
+| `systemPrompt.ts` | AI system prompt builder; short-first answers (2-3 lines), then offer details |
 | `rag.ts` | RAG: semantic search, ranking, visual linking |
 | `hybridSearch.ts` | Hybrid search (Tavus KB + multimodal RAG) |
 | `smartSearch.ts` | Smart search utilities |

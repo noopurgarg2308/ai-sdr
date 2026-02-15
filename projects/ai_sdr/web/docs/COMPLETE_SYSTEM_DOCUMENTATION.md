@@ -35,6 +35,7 @@ The AI SDR Platform is a multi-tenant system that provides intelligent knowledge
 ✅ **Multi-tenant Isolation**: Each company has isolated knowledge base  
 ✅ **Real-time Processing**: Async queue-based processing pipeline  
 ✅ **Admin Dashboard**: Complete management interface  
+✅ **Short-first Answers**: AI gives 2-3 line crisp answers first, asks if user wants details, then drills down only when requested  
 
 ---
 
