@@ -71,6 +71,19 @@ export const toolDefinitions = [
   {
     type: "function" as const,
     function: {
+      name: "end_conversation",
+      description:
+        "Call this when the user says they want to end the conversation, say goodbye, or are done. Examples: 'end the conversation', 'goodbye', 'that's all', 'I'm done', 'thanks that's all', 'I have to go', 'we can stop now'. Call this instead of giving a long verbal farewell—it will end the session cleanly.",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
       name: "show_visual",
       description:
         "Show relevant visual content (images, charts, slides, videos) to help explain a concept or answer a question. Use this when a visual would make the explanation clearer or more engaging. Examples: pricing charts, product screenshots, architecture diagrams, comparison tables, feature illustrations. Note: When search_knowledge returns linked visuals, those are automatically included - you don't need to call this tool separately for those. IMPORTANT: When visuals are shown, DO NOT describe or list them in your text response - they appear automatically in a visual section.",

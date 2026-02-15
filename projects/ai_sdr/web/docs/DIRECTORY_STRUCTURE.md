@@ -127,7 +127,7 @@
 | `hybridSearch.ts` | Hybrid search (Tavus KB + multimodal RAG) |
 | `smartSearch.ts` | Smart search utilities |
 | `tools.ts` | Tool definitions and dispatcher (search, demo, meeting, show_visual) |
-| `toolDefinitions.ts` | OpenAI function tool definitions (client-safe) |
+| `toolDefinitions.ts` | OpenAI function tool definitions (search_knowledge, get_demo_clip, create_meeting_link, show_visual, end_conversation) |
 | `crm.ts` | Conversation logging; AI classification; logLeadToCRM (legacy) |
 | `scheduling.ts` | Meeting link generation (Calendly-style) |
 | `demoMedia.ts` | Demo clip retrieval by persona/intent |

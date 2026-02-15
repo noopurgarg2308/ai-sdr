@@ -129,6 +129,7 @@ The Realtime API can call your existing tools:
 - `get_demo_clip` - Show product demos
 - `show_visual` - Show images/charts
 - `create_meeting_link` - Book meetings
+- `end_conversation` - End the session when the user says goodbye (e.g. "end conversation", "that's all", "I'm done"). Handled client-side; disconnects without a long verbal farewell.
 
 (Conversation logging is automatic when the user disconnects or when the session ends due to idle timeout.)
 

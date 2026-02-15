@@ -59,15 +59,13 @@ All contact fields (`name`, `email`, `company`, `role`, `icp_fit`, `use_cases`) 
 
 ### Idle Timeout (Session Termination)
 
-Both text and Realtime sessions end automatically after **1 minute** of no user input:
-
 - **Text**: No user message for 1 min → show "Session ended due to inactivity" → log conversation → reset session
-- **Realtime**: No user speech for 1 min → show "Session ended due to inactivity" → disconnect → log conversation
+- **Realtime**: No activity for 15 seconds (user speech, AI response) → show "Session ended due to inactivity" → disconnect → log conversation. User can also say "end conversation" or "goodbye" to end via the `end_conversation` tool (no button press needed).
 
 Activity resets the timer:
 
 - **Text**: Every user message
-- **Realtime**: User speech (transcript) or clicking "Start Speaking"
+- **Realtime**: User speech (via onUserAudio + transcript), AI audio, or assistant transcript. Does not disconnect while the AI is speaking.
 
 ---
 

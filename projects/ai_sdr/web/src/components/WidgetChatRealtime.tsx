@@ -156,7 +156,7 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
 
 Be conversational and helpful. Ask about their role and needs.
 
-CRITICAL: Always use the search_knowledge tool when answering questions about ${company.displayName}, its products, pricing, features, or documentation. Never rely on general knowledge for company-specific questions. Use create_meeting_link when the visitor is ready. ${visualNote}`;
+CRITICAL: Always use the search_knowledge tool when answering questions about ${company.displayName}, its products, pricing, features, or documentation. Never rely on general knowledge for company-specific questions. Use create_meeting_link when the visitor is ready. When the user says they are done (e.g. "end conversation", "goodbye", "that's all"), call end_conversation immediately—do not give a long verbal farewell. ${visualNote}`;
         }
       }
 
@@ -201,7 +201,13 @@ CRITICAL: Always use the search_knowledge tool when answering questions about ${
         },
         onFunctionCall: async (name, args) => {
           console.log("[Realtime] Function call:", name, args);
-          
+
+          // Handle end_conversation client-side—disconnect after letting result get sent
+          if (name === "end_conversation") {
+            setTimeout(() => disconnect(), 300);
+            return { success: true, message: "Goodbye!" };
+          }
+
           try {
             // Call the appropriate tool via your existing API
             const response = await fetch(`/api/chat/${companyId}/tool`, {
