@@ -113,9 +113,9 @@
 |------|-------------|
 | `VideoPlayer.tsx` | Video playback component |
 | `WidgetChat.tsx` | Base chat widget (reusable) |
-| `EmbeddableChatWidget.tsx` | Floating chat bubble + centered modal for marketing page |
+| `EmbeddableChatWidget.tsx` | Floating avatar (large), centered modal, company name in header, light blue theme |
 | `WidgetChatText.tsx` | Text chat with visuals, demo, meeting; idle timeout |
-| `WidgetChatRealtime.tsx` | Realtime voice chat; natural hands-free flow; auto-start recording; 15s idle timeout; log on disconnect |
+| `WidgetChatRealtime.tsx` | Realtime voice chat; avatar + compact Start/Stop; no header; 15s idle timeout; log on disconnect |
 | `WidgetChatTavus.tsx` | Tavus video avatar chat |
 | `WidgetChatUnified.tsx` | Unified widget (mode switcher); Realtime Voice default; Text only when useTextChat; Tavus when useTavusVideo |
 
@@ -243,6 +243,7 @@
 | File | Description |
 |------|-------------|
 | `realtime-audio-worklet.js` | AudioWorklet for Realtime mic capture (resample to 24kHz, PCM16) |
+| `ai-agent-avatar.png` | Anime-style male avatar for floating widget and voice chat bar |
 | `globe.svg` | Globe icon |
 | `next.svg` | Next.js logo |
 | `vercel.svg` | Vercel logo |

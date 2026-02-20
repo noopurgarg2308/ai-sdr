@@ -11,10 +11,27 @@ interface EmbeddableChatWidgetProps {
 
 export default function EmbeddableChatWidget({ companyId, initialOpen = false, onOpenChange }: EmbeddableChatWidgetProps) {
   const [isOpen, setIsOpen] = useState(initialOpen);
+  const [companyName, setCompanyName] = useState<string | null>(null);
 
   useEffect(() => {
     setIsOpen(initialOpen);
   }, [initialOpen]);
+
+  useEffect(() => {
+    const fetchCompany = async () => {
+      try {
+        const res = await fetch("/api/admin/companies");
+        if (res.ok) {
+          const companies = await res.json();
+          const company = companies.find((c: { slug: string }) => c.slug === companyId);
+          setCompanyName(company?.displayName ?? null);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    fetchCompany();
+  }, [companyId]);
 
   const setOpen = (open: boolean) => {
     setIsOpen(open);
@@ -37,14 +54,15 @@ export default function EmbeddableChatWidget({ companyId, initialOpen = false, o
             className="relative z-10 w-full max-w-lg h-[min(600px,calc(100vh-2rem))] rounded-xl shadow-2xl border border-stone-200 bg-white flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex-shrink-0 flex justify-between items-center px-4 py-3 bg-stone-900 text-white">
-              <span className="font-semibold text-sm">Try AI SDR Demo</span>
+            <div className="flex-shrink-0 flex items-center px-4 py-3 bg-sky-400 text-white">
+              <div className="w-7 flex-shrink-0" aria-hidden />
+              <span className="font-semibold text-sm flex-1 text-center">{companyName ? `${companyName} AI Agent` : "AI Agent"}</span>
               <button
                 onClick={() => setOpen(false)}
-                className="p-1 rounded-md hover:bg-stone-700 transition-colors"
+                className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-md hover:bg-sky-500 transition-colors text-white"
                 aria-label="Close"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" >
                   <path d="M18 6 6 18" />
                   <path d="m6 6 12 12" />
                 </svg>
@@ -57,21 +75,23 @@ export default function EmbeddableChatWidget({ companyId, initialOpen = false, o
         </div>
       )}
 
-      {/* Floating chat bubble */}
+      {/* Floating chat bubble - anime-style avatar */}
       <button
         onClick={() => setOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-[9998] w-14 h-14 rounded-full bg-stone-900 text-white shadow-lg hover:bg-stone-800 transition-all hover:scale-105 flex items-center justify-center"
-        aria-label={isOpen ? "Close chat" : "Try AI SDR demo"}
+        className="fixed bottom-6 right-6 z-[9998] w-28 h-28 rounded-full overflow-hidden border-2 border-white shadow-lg hover:shadow-xl transition-all hover:scale-105 flex items-center justify-center bg-stone-100 ring-2 ring-stone-200/50"
+        aria-label={isOpen ? "Close chat" : companyName ? `Talk to ${companyName} AI Agent` : "Try AI SDR demo"}
       >
         {isOpen ? (
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-stone-600">
             <path d="M18 6 6 18" />
             <path d="m6 6 12 12" />
           </svg>
         ) : (
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
+          <img
+            src="/ai-agent-avatar.png"
+            alt="AI SDR Agent"
+            className="w-full h-full object-cover"
+          />
         )}
       </button>
     </>

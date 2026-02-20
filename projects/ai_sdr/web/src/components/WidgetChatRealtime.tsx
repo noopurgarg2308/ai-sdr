@@ -16,7 +16,7 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
     {
       id: "initial",
       role: "assistant",
-      content: "Hi there! Click connect to start. Once connected, just speak naturally—I'll respond when you pause. No buttons to press.",
+      content: "Hi there! Click Start below to begin. Once connected, just speak naturally—I'll respond when you pause.",
       createdAt: new Date().toISOString(),
     },
   ]);
@@ -290,14 +290,6 @@ ANSWER LENGTH: Start short. Your first response to any question must be 2-3 line
 
   return (
     <div className="flex flex-col h-full max-w-4xl mx-auto bg-white">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 shadow-lg flex-shrink-0">
-        <h1 className="text-xl font-semibold">AI Sales Assistant (Voice)</h1>
-        <p className="text-sm text-blue-100">
-          {isConnected ? "🟢 Listening - Just speak naturally, I'll respond when you pause" : "Click connect to start"}
-        </p>
-      </div>
-
       {/* Error Message */}
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 m-4 rounded flex-shrink-0">
@@ -499,31 +491,32 @@ ANSWER LENGTH: Start short. Your first response to any question must be 2-3 line
         )}
       </div>
 
-      {/* Fixed Voice Controls at Bottom */}
-      <div className="border-t p-4 bg-white flex-shrink-0">
-        <div className="flex items-center justify-center space-x-4">
-          {!isConnected ? (
-            <button
-              onClick={initializeRealtime}
-              className="bg-blue-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-lg"
-            >
-              🎤 Connect & Start Voice Chat
-            </button>
-          ) : (
-            <button
-              onClick={() => disconnect()}
-              className="bg-red-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-red-700 transition-colors text-lg"
-            >
-              End Conversation
-            </button>
-          )}
+      {/* Fixed Voice Controls at Bottom - Avatar + compact Start/Stop */}
+      <div className="border-t px-4 py-3 bg-white flex-shrink-0">
+        <div className="flex items-center justify-between gap-4">
+          <img
+            src="/ai-agent-avatar.png"
+            alt="AI Agent"
+            className="w-12 h-12 rounded-full object-cover border-2 border-stone-200 flex-shrink-0"
+          />
+          <div className="flex-1 min-w-0 flex items-center justify-end">
+            {!isConnected ? (
+              <button
+                onClick={initializeRealtime}
+                className="bg-sky-400 text-white px-5 py-2 rounded-lg font-semibold text-sm hover:bg-sky-500 transition-colors"
+              >
+                Start
+              </button>
+            ) : (
+              <button
+                onClick={() => disconnect()}
+                className="bg-red-500 text-white px-5 py-2 rounded-lg font-semibold text-sm hover:bg-red-600 transition-colors"
+              >
+                Stop
+              </button>
+            )}
+          </div>
         </div>
-        
-        <p className="text-center text-sm text-gray-600 mt-3">
-          {isConnected 
-            ? "Natural conversation—no buttons to press. Session ends after 15s of silence." 
-            : "Connect to start a hands-free voice conversation"}
-        </p>
       </div>
     </div>
   );
