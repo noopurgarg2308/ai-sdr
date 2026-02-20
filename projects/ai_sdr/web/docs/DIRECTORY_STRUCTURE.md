@@ -40,15 +40,16 @@
 | File | Description |
 |------|-------------|
 | `layout.tsx` | Root layout (metadata, fonts, body) |
-| `page.tsx` | Landing page |
+| `page.tsx` | Marketing landing page (hero, features, contact form, embeddable chat widget) |
 | `globals.css` | Global Tailwind and custom styles |
 
 ### `app/admin/` – Admin UI
 
 | File | Description |
 |------|-------------|
-| `admin/companies/page.tsx` | Company list, create, manage; website sources; embed code; Tier 1 BYOK config; Create Client Admin User form |
+| `admin/companies/page.tsx` | Company list, create, manage; website sources; embed code; Tier 1 BYOK; Text Chat (useTextChat) toggle; Create Client Admin User form |
 | `admin/companies/[id]/media/page.tsx` | Company media management (upload, view, crawl) |
+| `admin/interest/page.tsx` | Sign-up interest submissions from marketing site |
 
 ### `app/client-admin/` – Client Admin Portal (authenticated)
 
@@ -68,13 +69,15 @@
 | `api/chat/[companyId]/route.ts` | Chat completion (tools, visuals); auto-logs each conversation |
 | `api/chat/[companyId]/tool/route.ts` | Tool execution for Realtime function calls |
 | `api/chat/[companyId]/log-conversation/route.ts` | Client-triggered conversation logging (Realtime) |
+| `api/interest/route.ts` | POST sign-up interest (name, email, message); stores in DB, optionally emails via Resend |
 | `api/realtime/session/route.ts` | Realtime session: returns API key and model for WebSocket |
 | `api/tavus/session/route.ts` | Tavus session creation (CVI persona, room) |
 | `api/tavus/callback/route.ts` | Tavus tool-call callback (executes search, demo, meeting, etc.) |
 | `api/tavus/tool/route.ts` | Tavus tool execution (alternative endpoint) |
 | `api/admin/companies/route.ts` | GET list, POST create companies |
-| `api/admin/companies/[id]/route.ts` | GET, PUT, DELETE single company; PUT accepts useTavusVideo, tavusReplicaId, tavusPersonaId, billingTier, openaiApiKey |
+| `api/admin/companies/[id]/route.ts` | GET, PUT, DELETE single company; PUT accepts useTavusVideo, tavusReplicaId, tavusPersonaId, useTextChat, useVisuals, billingTier, openaiApiKey |
 | `api/admin/client-admin-users/route.ts` | POST create client admin user (companyId, email, password) |
+| `api/admin/interest/route.ts` | GET list sign-up interest submissions |
 | `api/auth/[...nextauth]/route.ts` | NextAuth handler |
 | `api/client-admin/company/route.ts` | GET/PUT company (scoped to session; PUT accepts only client-editable fields: productSummary, shortDescription, displayName, websiteUrl) |
 | `api/client-admin/validate-key/route.ts` | Test OpenAI API key |
@@ -110,10 +113,11 @@
 |------|-------------|
 | `VideoPlayer.tsx` | Video playback component |
 | `WidgetChat.tsx` | Base chat widget (reusable) |
+| `EmbeddableChatWidget.tsx` | Floating chat bubble + centered modal for marketing page |
 | `WidgetChatText.tsx` | Text chat with visuals, demo, meeting; idle timeout |
 | `WidgetChatRealtime.tsx` | Realtime voice chat; natural hands-free flow; auto-start recording; 15s idle timeout; log on disconnect |
 | `WidgetChatTavus.tsx` | Tavus video avatar chat |
-| `WidgetChatUnified.tsx` | Unified widget (mode switcher); Tavus video only when company has useTavusVideo) |
+| `WidgetChatUnified.tsx` | Unified widget (mode switcher); Realtime Voice default; Text only when useTextChat; Tavus when useTavusVideo |
 
 ### `src/lib/` – Core Libraries
 
@@ -168,6 +172,8 @@
 | `migrations/20260208030501_add_use_visuals/migration.sql` | useVisuals (images/demos off by default) |
 | `migrations/20260208035312_add_byok_openai_key/migration.sql` | BYOK billing tier, OpenAI API key |
 | `migrations/20260209000000_add_client_admin_user/migration.sql` | User model for client admin portal |
+| `migrations/20260215201227_add_interest/migration.sql` | Interest model for marketing site contact form |
+| `migrations/20260220055151_add_use_text_chat/migration.sql` | useTextChat (text mode per company, off by default) |
 
 ---
 

@@ -9,9 +9,10 @@ const IDLE_TIMEOUT_MS = 60 * 1000; // 1 minute
 
 interface WidgetChatProps {
   companyId: string;
+  embedded?: boolean;
 }
 
-export default function WidgetChatText({ companyId }: WidgetChatProps) {
+export default function WidgetChatText({ companyId, embedded = false }: WidgetChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "initial",
@@ -288,12 +289,14 @@ export default function WidgetChatText({ companyId }: WidgetChatProps) {
   };
 
   return (
-    <div className="flex flex-col h-full max-w-4xl mx-auto bg-white">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 shadow-lg flex-shrink-0">
-        <h1 className="text-xl font-semibold">AI Sales Assistant (Text + Visuals)</h1>
-        <p className="text-sm text-blue-100">Type your questions and I'll show you visuals</p>
-      </div>
+    <div className={`flex flex-col h-full bg-white ${embedded ? "" : "max-w-4xl mx-auto"}`}>
+      {/* Header - compact in embedded mode */}
+      {!embedded && (
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 shadow-lg flex-shrink-0">
+          <h1 className="text-xl font-semibold">AI Sales Assistant (Text + Visuals)</h1>
+          <p className="text-sm text-blue-100">Type your questions and I'll show you visuals</p>
+        </div>
+      )}
 
       {/* Idle timeout message */}
       {sessionEndedIdle && (
@@ -534,9 +537,11 @@ export default function WidgetChatText({ companyId }: WidgetChatProps) {
             Send
           </button>
         </div>
-        <p className="text-xs text-gray-500 mt-2 text-center">
-          Text mode - Type questions to see visual content
-        </p>
+        {!embedded && (
+          <p className="text-xs text-gray-500 mt-2 text-center">
+            Text mode - Type questions to see visual content
+          </p>
+        )}
       </div>
     </div>
   );

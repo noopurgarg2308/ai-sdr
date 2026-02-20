@@ -33,9 +33,15 @@ MEETING_BASE_URL=https://calendly.com/your-team/demo
 # Client Admin Portal (optional — for self-service client portal)
 NEXTAUTH_SECRET=your-random-secret-at-least-32-chars
 NEXTAUTH_URL=http://localhost:3000
+
+# Marketing site contact form (optional — for email notifications)
+CONTACT_EMAIL=you@example.com
+RESEND_API_KEY=re_xxx
 ```
 
 Generate NEXTAUTH_SECRET: `openssl rand -base64 32`
+
+**Contact form:** Submissions are stored in the database. If `RESEND_API_KEY` and `CONTACT_EMAIL` are set, you'll also receive an email for each submission. Get a free API key at [resend.com](https://resend.com).
 
 ### 3. Set Up Database
 
@@ -88,7 +94,7 @@ Visit http://localhost:3000 to see the app.
    - Book meetings
    - Every conversation is logged to `data/conversations/{companyId}.jsonl` (classified as lead or visitor)
 
-4. **MVP modes:** Text and Realtime Voice are available by default. Images, demos, and videos are **OFF by default** — tick "Show images, demos & videos" per company to enable. Tavus Video Avatar is **optional per company** — expand "Tavus Video Avatar" to enable.
+4. **Chat modes:** Realtime Voice is **always available**. Text mode (Type & Read) is **off by default** — tick "Text chat (Type & Read)" per company to enable. Images, demos, and videos are **OFF by default** — tick "Show images, demos & videos" per company to enable. Tavus Video Avatar is **optional per company** — expand "Tavus Video Avatar" to enable.
 
 ### Embed on Your Website
 

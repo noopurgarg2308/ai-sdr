@@ -5,6 +5,7 @@ A comprehensive multi-tenant AI Sales Development Representative (SDR) platform 
 ## 🚀 Features
 
 ### Core Capabilities
+- **Marketing Site**: Public landing page with AI SDR info, contact form, and embeddable demo widget (centered modal, voice-first)
 - **Multi-tenant Architecture**: Isolated knowledge bases per company/tenant
 - **Multimodal RAG**: Search across PDF documents and website content simultaneously
 - **Visual Content Extraction**: Automatic extraction and linking of images, charts, and slides
@@ -75,8 +76,9 @@ A comprehensive multi-tenant AI Sales Development Representative (SDR) platform 
    npm run dev
    ```
 
-5. **Access Admin Interface**
-   Open http://localhost:3000/admin/companies
+5. **Access the app**
+   - Marketing site: http://localhost:3000
+   - Admin: http://localhost:3000/admin/companies
 
 ## 🏗️ Architecture
 

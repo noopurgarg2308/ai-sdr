@@ -42,6 +42,9 @@ model Company {
   // Visual content (images, demos, videos) - OFF by default for MVP
   useVisuals       Boolean      @default(false)
 
+  // Text chat mode - OFF by default; when false, only realtime voice appears
+  useTextChat     Boolean      @default(false)
+
   // Tier 1 BYOK: client-provided OpenAI API key (stored per company)
   billingTier      String?      // "byok" = bring your own key (required), null = use platform key
   openaiApiKey     String?      // Client's OpenAI API key (for billingTier="byok")
@@ -113,6 +116,16 @@ model Chunk {
 
   @@index([companyId])
   @@index([documentId])
+}
+
+model Interest {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  message   String?
+  createdAt DateTime @default(now())
+
+  @@index([email])
 }
 
 model MediaAsset {

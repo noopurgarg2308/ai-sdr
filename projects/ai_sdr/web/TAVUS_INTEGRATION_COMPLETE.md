@@ -210,10 +210,9 @@ Response: { success: true, result: {...} }
 
 ### Widget Modes:
 
-1. **Text Only** - Type and read
-2. **Text-to-Speech** - Type and listen
-3. **Realtime Voice** - OpenAI Realtime API
-4. **Video Avatar** - Tavus CVI (if enabled)
+1. **Realtime Voice** - OpenAI Realtime API (default, always available)
+2. **Text Only** - Type and read (only when company has `useTextChat: true`)
+3. **Video Avatar** - Tavus CVI (only when company has `useTavusVideo: true` and `tavusReplicaId`)
 
 ### Video Avatar Features:
 

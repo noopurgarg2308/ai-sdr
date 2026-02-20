@@ -11,6 +11,7 @@ interface Company {
   ownerEmail?: string;
   createdAt: string;
   useVisuals?: boolean;
+  useTextChat?: boolean;
   useTavusVideo?: boolean;
   tavusReplicaId?: string | null;
   tavusPersonaId?: string | null;
@@ -53,6 +54,7 @@ export default function AdminCompaniesPage() {
   const [refreshingStatus, setRefreshingStatus] = useState<Set<string>>(new Set());
   const [expandedTavus, setExpandedTavus] = useState<Set<string>>(new Set());
   const [savingVisuals, setSavingVisuals] = useState<Set<string>>(new Set());
+  const [savingTextChat, setSavingTextChat] = useState<Set<string>>(new Set());
   const [tavusForm, setTavusForm] = useState<Record<string, { useTavusVideo: boolean; tavusReplicaId: string; tavusPersonaId: string }>>({});
   const [savingTavus, setSavingTavus] = useState<Set<string>>(new Set());
   const [expandedBYOK, setExpandedBYOK] = useState<Set<string>>(new Set());
@@ -303,6 +305,28 @@ export default function AdminCompaniesPage() {
     }
   };
 
+  const handleSaveTextChat = async (companyId: string, useTextChat: boolean) => {
+    setSavingTextChat((prev) => new Set(prev).add(companyId));
+    try {
+      const response = await fetch(`/api/admin/companies/${companyId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ useTextChat }),
+      });
+      if (!response.ok) throw new Error("Failed to save");
+      setSuccess("Text chat settings saved");
+      fetchCompanies();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setSavingTextChat((prev) => {
+        const next = new Set(prev);
+        next.delete(companyId);
+        return next;
+      });
+    }
+  };
+
   const handleSaveTavus = async (companyId: string) => {
     const form = tavusForm[companyId];
     if (!form) return;
@@ -468,7 +492,15 @@ export default function AdminCompaniesPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Company Management</h1>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Company Management</h1>
+          <a
+            href="/admin/interest"
+            className="text-sm text-gray-600 hover:text-gray-900 font-medium"
+          >
+            Sign-up interest →
+          </a>
+        </div>
 
         {(error || success) && (
           <div className={`mb-6 p-3 rounded ${
@@ -1064,6 +1096,31 @@ export default function AdminCompaniesPage() {
                           <span className="text-sm">Enable</span>
                         </label>
                         {savingVisuals.has(company.id) && <span className="text-xs text-gray-500">Saving...</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Text Chat - OFF by default; when disabled, only realtime voice appears */}
+                  <div className="mt-4 border-t pt-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <span className="text-sm font-medium text-gray-700">Text chat (Type & Read)</span>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {company.useTextChat ? "Enabled — users can choose text mode" : "OFF (default) — voice only"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={company.useTextChat ?? false}
+                            onChange={(e) => handleSaveTextChat(company.id, e.target.checked)}
+                            disabled={savingTextChat.has(company.id)}
+                            className="rounded border-gray-300"
+                          />
+                          <span className="text-sm">Enable</span>
+                        </label>
+                        {savingTextChat.has(company.id) && <span className="text-xs text-gray-500">Saving...</span>}
                       </div>
                     </div>
                   </div>

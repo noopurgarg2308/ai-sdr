@@ -48,7 +48,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { slug, displayName, shortDescription, websiteUrl, config, ownerEmail, useTavusVideo, tavusReplicaId, tavusPersonaId, useVisuals, billingTier, openaiApiKey } = body;
+    const { slug, displayName, shortDescription, websiteUrl, config, ownerEmail, useTavusVideo, tavusReplicaId, tavusPersonaId, useVisuals, useTextChat, billingTier, openaiApiKey } = body;
 
     const updateData: any = {};
     if (slug !== undefined) updateData.slug = slug;
@@ -61,6 +61,7 @@ export async function PUT(
     if (tavusReplicaId !== undefined) updateData.tavusReplicaId = tavusReplicaId === "" ? null : tavusReplicaId;
     if (tavusPersonaId !== undefined) updateData.tavusPersonaId = tavusPersonaId === "" ? null : tavusPersonaId;
     if (useVisuals !== undefined) updateData.useVisuals = Boolean(useVisuals);
+    if (useTextChat !== undefined) updateData.useTextChat = Boolean(useTextChat);
     if (billingTier !== undefined) updateData.billingTier = billingTier === "" ? null : billingTier;
     if (openaiApiKey !== undefined) updateData.openaiApiKey = openaiApiKey === "" ? null : openaiApiKey;
 

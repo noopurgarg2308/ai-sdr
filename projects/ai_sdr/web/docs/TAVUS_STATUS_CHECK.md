@@ -82,6 +82,7 @@ So **per customer that uses the video chat, we have one `tavusPersonaId` in the 
      - `useTavusKB`
      - `searchStrategy`
      - `tavusKBWeight`
+   - `useTextChat` (text mode; off by default; when false, widget shows only realtime voice)
 
 5. **Integration**
    - ✅ Hybrid search with Tavus KB
