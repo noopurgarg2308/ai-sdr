@@ -49,10 +49,13 @@ export default function MarketingPage() {
       {/* Hero */}
       <section className="max-w-5xl mx-auto px-4 pt-20 pb-16">
         <h1 className="text-4xl md:text-5xl font-bold text-stone-900 tracking-tight mb-6">
-          Your AI sales rep that knows your product
+          Add an AI Agent to your website in seconds
         </h1>
-        <p className="text-xl text-stone-600 max-w-2xl mb-10">
-          Add an AI SDR to your website. It answers questions from your docs and site, qualifies leads, and books meetings—24/7.
+        <p className="text-xl text-stone-600 max-w-2xl mb-6">
+          No setup. No configuration. No technical expertise. Your AI sales rep that answers questions, qualifies leads, and books meetings—live on your site in a few clicks.
+        </p>
+        <p className="text-stone-600 max-w-2xl mb-10">
+          Try it before you make it visible. No lock-in. Cancel anytime.
         </p>
         <div className="flex flex-wrap gap-4">
           <a
@@ -94,34 +97,63 @@ export default function MarketingPage() {
         </div>
       </section>
 
-      {/* Features */}
+      {/* Why us / How it works */}
       <section className="py-16">
+        <div className="max-w-5xl mx-auto px-4">
+          <h2 className="text-2xl font-bold text-stone-900 mb-10">Why choose us</h2>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">⚡</span>
+              <div>
+                <h3 className="font-semibold text-stone-900 mb-1">Instant setup</h3>
+                <p className="text-stone-600 text-sm">Live on your website in seconds. No configuration, no technical expertise needed.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">🔓</span>
+              <div>
+                <h3 className="font-semibold text-stone-900 mb-1">No lock-in</h3>
+                <p className="text-stone-600 text-sm">Flexible pricing. Try before you pay. Cancel anytime.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">👁️</span>
+              <div>
+                <h3 className="font-semibold text-stone-900 mb-1">Try before you go live</h3>
+                <p className="text-stone-600 text-sm">Test your agent privately. Make it visible to the public only when you&apos;re ready.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">🎤</span>
+              <div>
+                <h3 className="font-semibold text-stone-900 mb-1">Voice and text</h3>
+                <p className="text-stone-600 text-sm">Natural voice chat powered by OpenAI Realtime. Or type—your visitors choose.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features */}
+      <section className="bg-white border-y border-stone-200 py-16">
         <div className="max-w-5xl mx-auto px-4">
           <h2 className="text-2xl font-bold text-stone-900 mb-10">Features</h2>
           <ul className="grid md:grid-cols-2 gap-4 text-stone-700">
             <li className="flex items-start gap-2">
               <span className="text-emerald-500 mt-0.5">✓</span>
-              Text and voice chat (OpenAI Realtime)
+              Answers questions from your docs and website
             </li>
             <li className="flex items-start gap-2">
               <span className="text-emerald-500 mt-0.5">✓</span>
-              Knowledge base from your PDFs and website
+              Qualifies leads and identifies buying signals
             </li>
             <li className="flex items-start gap-2">
               <span className="text-emerald-500 mt-0.5">✓</span>
-              Multi-tenant: one widget per company
+              Books meetings when visitors are ready
             </li>
             <li className="flex items-start gap-2">
               <span className="text-emerald-500 mt-0.5">✓</span>
-              Bring-your-own-key (BYOK) for enterprise
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-emerald-500 mt-0.5">✓</span>
-              Embeddable widget: drop it on any site
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-emerald-500 mt-0.5">✓</span>
-              Client admin portal for self-service setup
+              Embeddable widget—drop it on any site
             </li>
           </ul>
         </div>
