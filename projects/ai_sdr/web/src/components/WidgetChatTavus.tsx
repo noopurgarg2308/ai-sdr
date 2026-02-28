@@ -113,6 +113,7 @@ export default function WidgetChatTavus({ companyId }: WidgetChatTavusProps) {
 
       // Listen for custom events from Tavus (if they send them via Daily.co)
       // Tavus may send events through Daily.co's custom event system
+      // @ts-expect-error - "custom-event" exists in Daily.co but not in their types
       daily.on("custom-event", (event: any) => {
         console.log("[Tavus] Custom event:", event);
         if (event && event.data) {

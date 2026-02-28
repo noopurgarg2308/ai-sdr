@@ -103,7 +103,7 @@ export async function searchMediaAssets(options: {
       const searchText = [
         asset.title.toLowerCase(),
         asset.description?.toLowerCase() || "",
-        ...(asset.tags?.map(t => t.toLowerCase()) || []),
+        ...(asset.tags?.map((t: string) => t.toLowerCase()) || []),
       ].join(" ");
       
       // Match if ANY query word is found (more lenient)

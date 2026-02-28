@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
           : [],
     };
 
-    let instructions = buildSystemPrompt(companyConfig);
+    let instructions = buildSystemPrompt(companyConfig as any);
     
     // Emphasize using the search_knowledge tool for company-specific questions (RAG)
     instructions += `\n\nCRITICAL INSTRUCTIONS FOR TOOL USAGE:

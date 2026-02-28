@@ -114,12 +114,13 @@ Leave fields null or empty if not mentioned. Never invent information.`,
 
   try {
     const parsed = JSON.parse(text) as Record<string, unknown>;
+    const str = (v: unknown): string | null => (typeof v === "string" ? v : null);
     return {
       isLead: Boolean(parsed.isLead),
-      name: parsed.name ?? null,
-      email: parsed.email ?? null,
-      company: parsed.company ?? null,
-      role: parsed.role ?? null,
+      name: str(parsed.name),
+      email: str(parsed.email),
+      company: str(parsed.company),
+      role: str(parsed.role),
       icp_fit: (parsed.icp_fit as "high" | "medium" | "low") ?? null,
       use_cases: Array.isArray(parsed.use_cases) ? parsed.use_cases : [],
       summary: String(parsed.summary ?? "").slice(0, 500),

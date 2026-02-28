@@ -210,7 +210,7 @@ function mergeAndRankResults(
       source: "your-rag" as const,
       documentId: r.documentId,
       mediaAssetId: r.mediaAssetId,
-      pageNumber: r.pageNumber,
+      pageNumber: (r as { pageNumber?: number }).pageNumber,
       timestamp: r.timestamp,
     })),
   ];
@@ -225,10 +225,18 @@ function mergeAndRankResults(
   const topResults = uniqueResults.slice(0, limit);
 
   return {
-    results: topResults.map(r => ({
-      ...r,
-      pageNumber: (r as any).pageNumber, // Preserve pageNumber from RAG results
-    })),
+    results: topResults.map((r) => {
+      const rr = r as { pageNumber?: number; timestamp?: string };
+      return {
+        content: r.content,
+        score: r.score,
+        source: r.source as "tavus" | "your-rag" | "merged",
+        documentId: r.documentId,
+        mediaAssetId: r.mediaAssetId,
+        pageNumber: rr.pageNumber,
+        timestamp: rr.timestamp,
+      };
+    }),
     linkedVisuals: ragResults.linkedVisuals, // Only from your RAG
     visualResults: ragResults.visualResults, // Only from your RAG
   };

@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
 
     const asset = await addMediaAsset({
       companyId,
-      type: mediaType,
+      type: mediaType as "image" | "video" | "pdf",
       url: publicUrl,
       title,
       description: description || undefined,
