@@ -30,8 +30,8 @@ export default function AdminCompaniesPage() {
   const [error, setError] = useState<string>();
   const [success, setSuccess] = useState<string>();
 
-  // Website source form state
-  const [showWebsiteForm, setShowWebsiteForm] = useState(false);
+  // Website source form state - show form by default so crawl option is visible
+  const [showWebsiteForm, setShowWebsiteForm] = useState(true);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
   const [websiteFormData, setWebsiteFormData] = useState({
     url: "",
@@ -580,9 +580,12 @@ export default function AdminCompaniesPage() {
               }}
               className="bg-purple-600 text-white px-4 py-2 rounded text-sm font-semibold hover:bg-purple-700"
             >
-              {showWebsiteForm ? "Cancel" : "+ Add Website Source"}
+              {showWebsiteForm ? "Cancel" : "+ Add Website & Start Crawl"}
             </button>
           </div>
+          <p className="text-sm text-gray-600 mb-2">
+            Crawling uses the company&apos;s OpenAI key when BYOK is enabled; otherwise the platform key. Add a URL below and click Start Crawl.
+          </p>
 
           {(error || success) && (
             <div className={`mb-4 p-3 rounded ${
@@ -703,7 +706,7 @@ export default function AdminCompaniesPage() {
                 disabled={isCreatingWebsite || !selectedCompanyId}
                 className="bg-purple-600 text-white px-6 py-2 rounded font-semibold hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
-                {isCreatingWebsite ? "Creating..." : "Create & Start Crawl"}
+                {isCreatingWebsite ? "Starting crawl..." : "Start Crawl"}
               </button>
             </form>
           )}

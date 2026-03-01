@@ -15,6 +15,7 @@ export default function ClientAdminContentPage() {
   const [websites, setWebsites] = useState<Array<{ id: string; url: string; title: string; processingStatus?: string }>>([]);
   const [saving, setSaving] = useState(false);
   const [addingWebsite, setAddingWebsite] = useState(false);
+  const [recrawlingId, setRecrawlingId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadTitle, setUploadTitle] = useState("");
@@ -52,6 +53,27 @@ export default function ClientAdminContentPage() {
       setMessage({ type: "error", text: "Failed to save" });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleReCrawl(sourceId: string) {
+    setRecrawlingId(sourceId);
+    setMessage(null);
+    try {
+      const res = await fetch(`/api/client-admin/website/${sourceId}/crawl`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ maxPages: 50, maxDepth: 3, includeImages: true }),
+      });
+      if (!res.ok) throw new Error("Re-crawl failed");
+      setWebsites((prev) =>
+        prev.map((w) => (w.id === sourceId ? { ...w, processingStatus: "processing" } : w))
+      );
+      setMessage({ type: "success", text: "Re-crawl started." });
+    } catch {
+      setMessage({ type: "error", text: "Failed to start re-crawl" });
+    } finally {
+      setRecrawlingId(null);
     }
   }
 
@@ -154,7 +176,7 @@ export default function ClientAdminContentPage() {
       <section className="p-6 bg-white rounded-lg border border-gray-200">
         <h2 className="font-semibold text-gray-900 mb-4">Website to Crawl</h2>
         <p className="text-sm text-gray-600 mb-4">
-          Add a URL to crawl. The AI will search this content.
+          Add a URL to crawl. The AI will search this content. Uses your company&apos;s API key when BYOK is enabled.
         </p>
         <form onSubmit={handleAddWebsite} className="space-y-4">
           <div>
@@ -189,9 +211,19 @@ export default function ClientAdminContentPage() {
         {websites.length > 0 && (
           <div className="mt-4">
             <p className="text-sm font-medium text-gray-700 mb-2">Websites:</p>
-            <ul className="space-y-1 text-sm text-gray-600">
+            <ul className="space-y-2 text-sm text-gray-600">
               {websites.map((w) => (
-                <li key={w.id}>{w.url} — {w.processingStatus || "completed"}</li>
+                <li key={w.id} className="flex items-center gap-2 flex-wrap">
+                  <span>{w.url} — {w.processingStatus || "completed"}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleReCrawl(w.id)}
+                    disabled={recrawlingId === w.id}
+                    className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 disabled:opacity-50"
+                  >
+                    {recrawlingId === w.id ? "Starting..." : "Re-crawl"}
+                  </button>
+                </li>
               ))}
             </ul>
           </div>

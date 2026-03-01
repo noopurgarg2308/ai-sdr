@@ -268,6 +268,20 @@ function shouldUseMultimodalRAG(query: string): boolean {
 }
 
 /**
+ * Resolve companyId (slug or id) to actual company id - chunks/documents use company.id
+ */
+async function resolveCompanyId(companyIdOrSlug: string): Promise<string> {
+  const company = await prisma.company.findFirst({
+    where: {
+      OR: [{ id: companyIdOrSlug }, { slug: companyIdOrSlug }],
+    },
+    select: { id: true },
+  });
+  if (!company) throw new Error(`Company not found: ${companyIdOrSlug}`);
+  return company.id;
+}
+
+/**
  * Main hybrid search function
  */
 export async function hybridSearch(
@@ -281,12 +295,15 @@ export async function hybridSearch(
   const { limit = 5, preferFast = false } = options || {};
   const startTime = Date.now();
 
+  // Resolve slug to company id - widget passes slug, but DB uses company.id
+  const resolvedId = await resolveCompanyId(companyId);
+
   // Get OpenAI key for company (BYOK or platform - never fall back to platform key for BYOK)
   const openaiApiKey = await getOpenAIKeyForCompany(companyId);
 
   // Get company configuration
   const company = await prisma.company.findUnique({
-    where: { id: companyId },
+    where: { id: resolvedId },
     select: {
       useTavusKB: true,
       searchStrategy: true,
@@ -303,7 +320,7 @@ export async function hybridSearch(
   if (!useTavus || preferFast) {
     if (preferFast && useTavus) {
       // Fast mode: only Tavus
-      const tavusResults = await searchTavusKB(companyId, query, limit);
+      const tavusResults = await searchTavusKB(resolvedId, query, limit);
       const latency = Date.now() - startTime;
 
       return {
@@ -324,7 +341,7 @@ export async function hybridSearch(
     }
 
     // Only your RAG
-    const ragResults = await searchYourRAG(companyId, query, limit, openaiApiKey);
+    const ragResults = await searchYourRAG(resolvedId, query, limit, openaiApiKey);
     const latency = Date.now() - startTime;
 
     return {
@@ -361,7 +378,7 @@ export async function hybridSearch(
 
   // Execute based on strategy
   if (finalStrategy === "your-rag-only") {
-    const ragResults = await searchYourRAG(companyId, query, limit, openaiApiKey);
+    const ragResults = await searchYourRAG(resolvedId, query, limit, openaiApiKey);
     const latency = Date.now() - startTime;
 
     return {
@@ -387,7 +404,7 @@ export async function hybridSearch(
 
   if (finalStrategy === "fallback") {
     // Try Tavus first, fallback to RAG
-    const tavusResults = await searchTavusKB(companyId, query, limit);
+    const tavusResults = await searchTavusKB(resolvedId, query, limit);
     const hasGoodResults =
       tavusResults.length > 0 && tavusResults[0].score > 0.6;
 
@@ -411,7 +428,7 @@ export async function hybridSearch(
     }
 
     // Fallback to RAG
-    const ragResults = await searchYourRAG(companyId, query, limit, openaiApiKey);
+    const ragResults = await searchYourRAG(resolvedId, query, limit, openaiApiKey);
     const latency = Date.now() - startTime;
 
     return {
@@ -437,8 +454,8 @@ export async function hybridSearch(
 
   // Default: Parallel search (search both and merge)
   const [tavusResults, ragResults] = await Promise.all([
-    searchTavusKB(companyId, query, limit * 2), // Get more, will merge
-    searchYourRAG(companyId, query, limit * 2, openaiApiKey),
+    searchTavusKB(resolvedId, query, limit * 2), // Get more, will merge
+    searchYourRAG(resolvedId, query, limit * 2, openaiApiKey),
   ]);
 
   // Merge and rank

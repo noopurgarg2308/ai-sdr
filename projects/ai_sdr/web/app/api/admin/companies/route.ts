@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    // Create company
+    // Create company - default to BYOK so platform key is never used by mistake
     const company = await prisma.company.create({
       data: {
         slug,
@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
         websiteUrl: websiteUrl || null,
         ownerEmail: ownerEmail || null,
         config: config as any,
+        billingTier: "byok",
       },
     });
 

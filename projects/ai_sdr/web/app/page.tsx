@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useState } from "react";
 import EmbeddableChatWidget from "@/components/EmbeddableChatWidget";
 
+// Demo widget always uses this company - create it in Admin and ensure it has an API key
+const DEMO_COMPANY_SLUG = "premcompany";
+
 export default function MarketingPage() {
   const [formData, setFormData] = useState({ name: "", email: "", message: "" });
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
@@ -218,8 +221,8 @@ export default function MarketingPage() {
         </div>
       </section>
 
-      {/* Floating chat widget */}
-      <EmbeddableChatWidget companyId="hypersonix" initialOpen={isWidgetOpen} onOpenChange={setIsWidgetOpen} />
+      {/* Floating chat widget - uses premcompany (create in Admin, add API key, crawl content) */}
+      <EmbeddableChatWidget companyId={DEMO_COMPANY_SLUG} initialOpen={isWidgetOpen} onOpenChange={setIsWidgetOpen} />
 
       {/* Footer */}
       <footer className="border-t border-stone-200 py-8">
