@@ -16,7 +16,7 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
     {
       id: "initial",
       role: "assistant",
-      content: "Hi there! Click Start below to begin. Once connected, just speak naturally—I'll respond when you pause.",
+      content: "Hi there! Click Start speaking below to begin. Once connected, just speak naturally—I'll respond when you pause.",
       createdAt: new Date().toISOString(),
     },
   ]);
@@ -81,7 +81,7 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
     }
   }, [companyId]);
 
-  // Idle timeout: if no user speech for 10s, assume they walked away and disconnect
+  // Idle timeout: 15s of no activity (see IDLE_TIMEOUT_MS) — assume they walked away and disconnect
   // Do NOT disconnect while the AI is speaking (isSpeaking) — wait until they finish
   useEffect(() => {
     if (!isConnected) return;
@@ -513,7 +513,7 @@ ANSWER LENGTH: Start short. Your first response to any question must be 2-3 line
         )}
       </div>
 
-      {/* Fixed Voice Controls at Bottom - Avatar + compact Start/Stop */}
+      {/* Fixed Voice Controls at Bottom - Avatar + voice controls */}
       <div className="border-t px-4 py-3 bg-white flex-shrink-0">
         <div className="flex items-center justify-between gap-4">
           <img
@@ -527,14 +527,14 @@ ANSWER LENGTH: Start short. Your first response to any question must be 2-3 line
                 onClick={initializeRealtime}
                 className="bg-sky-400 text-white px-5 py-2 rounded-lg font-semibold text-sm hover:bg-sky-500 transition-colors"
               >
-                Start
+                Start speaking
               </button>
             ) : (
               <button
                 onClick={() => disconnect()}
                 className="bg-red-500 text-white px-5 py-2 rounded-lg font-semibold text-sm hover:bg-red-600 transition-colors"
               >
-                Stop
+                Stop speaking
               </button>
             )}
           </div>

@@ -65,7 +65,7 @@ export default function MarketingPage() {
           onClick={() => setIsWidgetOpen(true)}
           className="inline-block border border-stone-300 text-stone-700 px-6 py-3 rounded-lg font-semibold hover:bg-stone-100 transition-colors"
         >
-          Try the demo
+          Ask me anything
         </button>
       </section>
 
