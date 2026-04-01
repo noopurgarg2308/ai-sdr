@@ -292,7 +292,7 @@ export class RealtimeClient {
 
     try {
       const result = await this.options.onFunctionCall(name, args);
-      
+
       this.send({
         type: "conversation.item.create",
         item: {
@@ -301,10 +301,25 @@ export class RealtimeClient {
           output: JSON.stringify(result),
         },
       });
-      
+
       this.send({ type: "response.create" });
     } catch (error) {
       console.error("[Realtime] Function call error:", error);
+      const msg = error instanceof Error ? error.message : String(error);
+      this.send({
+        type: "conversation.item.create",
+        item: {
+          type: "function_call_output",
+          call_id,
+          output: JSON.stringify({
+            error: true,
+            message: msg,
+            results: [],
+            hint: "Search or tool failed on the server. Ask the user to try again or rephrase.",
+          }),
+        },
+      });
+      this.send({ type: "response.create" });
     }
   }
 

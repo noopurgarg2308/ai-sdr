@@ -1,10 +1,11 @@
 import type { CompanyId, Persona } from "@/types/chat";
 import { searchKnowledge } from "./rag";
 import { intelligentSearch } from "./smartSearch";
-import { hybridSearch } from "./hybridSearch";
+import { hybridSearch, resolveCompanyId } from "./hybridSearch";
 import { getDemoClip } from "./demoMedia";
 import { createMeetingLink } from "./scheduling";
 import { searchMediaAssets, type MediaType, type MediaCategory } from "./media";
+import { prisma } from "./prisma";
 
 // Export tool definitions from separate file to avoid client-side imports
 export { toolDefinitions } from "./toolDefinitions";
@@ -176,10 +177,13 @@ export async function dispatchToolCall(
 
   switch (name) {
     case "search_knowledge": {
+      const dbCompanyId = await resolveCompanyId(companyId);
+      const MAX_SNIPPET_CHARS = 6000;
+
       // Use hybrid search that combines Tavus KB + Your Multimodal RAG
       let hybridResults;
       try {
-        hybridResults = await hybridSearch(companyId, args.query, {
+        hybridResults = await hybridSearch(dbCompanyId, args.query, {
           limit: 5,
           preferFast: false, // Always search both for comprehensive results
         });
@@ -190,6 +194,9 @@ export async function dispatchToolCall(
           linkedVisuals: [],
           visualResults: [],
           metadata: { ragResults: 0, tavusResults: 0, latency: 0, strategy: "error" },
+          error: true,
+          message:
+            searchError instanceof Error ? searchError.message : String(searchError),
         };
       }
       
@@ -199,7 +206,13 @@ export async function dispatchToolCall(
         `RAG: ${hybridResults.metadata.ragResults}) ` +
         `in ${hybridResults.metadata.latency}ms using ${hybridResults.metadata.strategy} strategy`
       );
-      
+      if (hybridResults.results.length === 0) {
+        const q = String(args.query ?? "").slice(0, 160);
+        console.warn(
+          `[Tools] search_knowledge: zero results (companyId=${dbCompanyId}, query="${q}", tavus=${hybridResults.metadata.tavusResults}, rag=${hybridResults.metadata.ragResults}, strategy=${hybridResults.metadata.strategy})`
+        );
+      }
+
       // Extract media asset IDs from search results
       // IMPORTANT: Only use top 2 results for slides to avoid showing too many
       const topResultsForSlides = hybridResults.results.slice(0, 2);
@@ -256,7 +269,7 @@ export async function dispatchToolCall(
         const assets = await prisma.mediaAsset.findMany({
           where: {
             id: { in: Array.from(topMediaAssetIds) }, // ONLY fetch from top 2 results
-            companyId,
+            companyId: dbCompanyId,
           },
           select: {
             id: true,
@@ -301,7 +314,7 @@ export async function dispatchToolCall(
             const pdfIdsSet = new Set(topPdfAssets.map(p => p.id));
             const allSlides = await prisma.mediaAsset.findMany({
               where: {
-                companyId,
+                companyId: dbCompanyId,
                 type: "slide",
               },
               select: {
@@ -376,14 +389,26 @@ export async function dispatchToolCall(
         assetsWithScores.sort((a, b) => b.score - a.score);
         const assetsToShow = assetsWithScores.slice(0, 2).map(item => item.asset);
         
-        linkedMediaAssets.push(...assetsToShow.map(asset => ({
-          type: asset.type,
-          url: asset.url,
-          title: asset.title,
-          description: asset.description || undefined,
-          thumbnail: asset.thumbnail || undefined,
-          metadata: asset.metadata ? JSON.parse(asset.metadata as string) : undefined,
-        })));
+        linkedMediaAssets.push(
+          ...assetsToShow.map((asset) => {
+            let parsedMeta: unknown;
+            if (asset.metadata) {
+              try {
+                parsedMeta = JSON.parse(asset.metadata as string);
+              } catch {
+                parsedMeta = undefined;
+              }
+            }
+            return {
+              type: asset.type,
+              url: asset.url,
+              title: asset.title,
+              description: asset.description || undefined,
+              thumbnail: asset.thumbnail || undefined,
+              metadata: parsedMeta,
+            };
+          })
+        );
         
         console.log(`[Tools] Adding ${assetsToShow.length} assets from top search results (sorted by score):`, assetsToShow.map(a => ({ type: a.type, title: a.title, url: a.url })));
         console.log(`[Tools] Asset scores:`, assetsWithScores.map(item => ({ url: item.asset.url, score: item.score.toFixed(3) })));
@@ -409,13 +434,21 @@ export async function dispatchToolCall(
       console.log(`[Tools] hybridResults.linkedVisuals: ${hybridResults.linkedVisuals?.length || 0} (${filteredHybridVisuals.length} after filtering PDFs)`);
       
       return {
-        results: hybridResults.results.map((r: any) => ({
-          content: r.content,
-          score: r.score,
-          source: r.source, // Indicates which KB it came from
-          mediaAssetId: r.mediaAssetId, // Include media asset ID if linked
-          pageNumber: r.pageNumber, // Include page number if available
-        })),
+        results: hybridResults.results.map((r: any) => {
+          const text =
+            typeof r.content === "string" ? r.content : String(r.content ?? "");
+          const content =
+            text.length > MAX_SNIPPET_CHARS
+              ? `${text.slice(0, MAX_SNIPPET_CHARS)}…`
+              : text;
+          return {
+            content,
+            score: r.score,
+            source: r.source, // Indicates which KB it came from
+            mediaAssetId: r.mediaAssetId, // Include media asset ID if linked
+            pageNumber: r.pageNumber, // Include page number if available
+          };
+        }),
         linkedVisuals: useVisuals ? [...filteredHybridVisuals, ...linkedMediaAssets] : [],
         visualResults: useVisuals ? hybridResults.visualResults : [],
         metadata: hybridResults.metadata, // Include search metadata

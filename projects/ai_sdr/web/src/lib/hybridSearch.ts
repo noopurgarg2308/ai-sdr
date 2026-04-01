@@ -270,7 +270,8 @@ function shouldUseMultimodalRAG(query: string): boolean {
 /**
  * Resolve companyId (slug or id) to actual company id - chunks/documents use company.id
  */
-async function resolveCompanyId(companyIdOrSlug: string): Promise<string> {
+/** Exported for tools layer — Prisma rows use company.id, not slug */
+export async function resolveCompanyId(companyIdOrSlug: string): Promise<string> {
   const company = await prisma.company.findFirst({
     where: {
       OR: [{ id: companyIdOrSlug }, { slug: companyIdOrSlug }],
