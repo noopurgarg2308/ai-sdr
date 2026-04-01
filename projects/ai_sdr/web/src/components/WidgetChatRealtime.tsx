@@ -266,6 +266,13 @@ ANSWER LENGTH: Start short. Your first response to any question must be 2-3 line
       });
 
       await realtimeClientRef.current.connect();
+      // Stop/close during connect() rejects with AbortError — handled below
+      if (!realtimeClientRef.current) {
+        setIsConnected(false);
+        setIsRecording(false);
+        return;
+      }
+
       sessionIdRef.current = `realtime_${Date.now()}_${Math.random().toString(36).slice(2)}`;
       lastActivityRef.current = Date.now();
       setIsConnected(true);
@@ -273,18 +280,33 @@ ANSWER LENGTH: Start short. Your first response to any question must be 2-3 line
       // Auto-start recording so it's always listening—server VAD auto-detects when user stops speaking
       try {
         await realtimeClientRef.current.startRecording();
+        // Stop or modal close during startRecording() clears the ref in disconnect() — avoid zombie "listening" UI
+        if (!realtimeClientRef.current) {
+          setIsConnected(false);
+          setIsRecording(false);
+          return;
+        }
         setIsRecording(true);
         setError(undefined);
       } catch (micErr) {
         console.error("[Realtime] Microphone error:", micErr);
         setError("Microphone access denied or not available");
+        setIsRecording(false);
       }
 
       console.log("[Realtime] Connected and listening");
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        realtimeClientRef.current?.disconnect();
+        realtimeClientRef.current = null;
+        setIsConnected(false);
+        setIsRecording(false);
+        return;
+      }
       console.error("[Realtime] Initialization error:", err);
       setError(err instanceof Error ? err.message : "Failed to connect");
       setIsConnected(false);
+      setIsRecording(false);
     }
   };
 

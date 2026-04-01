@@ -26,6 +26,13 @@ export interface RealtimeOptions {
 export class RealtimeClient {
   private ws: WebSocket | null = null;
   private options: RealtimeOptions;
+  /** When true, no new audio/WS sends; startRecording aborts after async gaps (prevents zombie mic after Stop/close during init). */
+  private closed = false;
+  /** Reject pending connect() when disconnect() runs before WebSocket opens */
+  private connectPromiseSettlers: {
+    resolve: () => void;
+    reject: (e: Error) => void;
+  } | null = null;
   private audioContext: AudioContext | null = null;
   private mediaStream: MediaStream | null = null;
   private audioProcessor: ScriptProcessorNode | null = null;
@@ -58,8 +65,9 @@ export class RealtimeClient {
   }
 
   async connect(): Promise<void> {
+    this.closed = false;
     const url = `wss://api.openai.com/v1/realtime?model=${this.options.model}`;
-    
+
     this.ws = new WebSocket(url, [
       "realtime",
       `openai-insecure-api-key.${this.options.apiKey}`,
@@ -69,13 +77,24 @@ export class RealtimeClient {
     return new Promise((resolve, reject) => {
       if (!this.ws) return reject(new Error("WebSocket not initialized"));
 
+      this.connectPromiseSettlers = { resolve, reject };
+
       this.ws.onopen = () => {
+        if (this.closed) {
+          console.log("[Realtime] Opened after close — tearing down socket");
+          try {
+            this.ws?.close();
+          } catch (_) {}
+          return;
+        }
         console.log("[Realtime] Connected to OpenAI");
         this.initializeSession();
+        this.connectPromiseSettlers = null;
         resolve();
       };
 
       this.ws.onmessage = (event) => {
+        if (this.closed) return;
         try {
           const message = JSON.parse(event.data);
           this.handleMessage(message);
@@ -86,8 +105,12 @@ export class RealtimeClient {
 
       this.ws.onerror = (error) => {
         console.error("[Realtime] WebSocket error:", error);
+        if (this.connectPromiseSettlers) {
+          const { reject: rej } = this.connectPromiseSettlers;
+          this.connectPromiseSettlers = null;
+          rej(new Error("WebSocket error"));
+        }
         this.options.onError?.(new Error("WebSocket error"));
-        reject(error);
       };
 
       this.ws.onclose = () => {
@@ -133,6 +156,7 @@ export class RealtimeClient {
   private activeAssistantAudioChannel: "output_audio" | "legacy_audio" | null = null;
 
   private handleMessage(message: RealtimeMessage) {
+    if (this.closed) return;
     if (message.type !== "response.output_audio.delta" && message.type !== "response.audio.delta") {
       console.log("[Realtime] ←", message.type, message.error ? message : "");
     } else if (!this.seenDeltaTypes.has(message.type)) {
@@ -264,6 +288,7 @@ export class RealtimeClient {
 
   /** Push-to-talk: commit buffered audio and ask the model to respond. Call before stopRecording() so chunk/byte counts are still valid. */
   commitAndRespond(): void {
+    if (this.closed) return;
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
     if (this.sendChunkCount === 0 || this.totalBytesSent < this.minBytesForCommit) {
       console.warn(
@@ -323,9 +348,48 @@ export class RealtimeClient {
     }
   }
 
+  /** Release mic/graph after startRecording partially completed but client was disconnected (race with Stop / modal close). */
+  private async abortStartRecordingAfterPartialSetup(): Promise<void> {
+    try {
+      if (this.captureWorkletNode) {
+        try {
+          this.audioSource?.disconnect();
+          this.captureWorkletNode.disconnect();
+        } catch (_) {}
+        this.captureWorkletNode = null;
+      }
+      if (this.audioProcessor) {
+        try {
+          this.audioProcessor.disconnect();
+          this.audioSource?.disconnect();
+          this.silentCaptureGain?.disconnect();
+        } catch (_) {}
+        this.audioProcessor = null;
+        this.silentCaptureGain = null;
+      }
+      this.audioSource = null;
+      if (this.mediaStream) {
+        this.mediaStream.getTracks().forEach((t) => t.stop());
+        this.mediaStream = null;
+      }
+      if (this.audioContext) {
+        try {
+          await this.audioContext.close();
+        } catch (_) {}
+        this.audioContext = null;
+      }
+      this.sendChunkCount = 0;
+      this.totalBytesSent = 0;
+    } catch (e) {
+      console.warn("[Realtime] abortStartRecordingAfterPartialSetup:", e);
+    }
+  }
+
   async startRecording(): Promise<void> {
     try {
       await this.sessionReadyPromise;
+      if (this.closed) return;
+
       this.mediaStream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
@@ -335,9 +399,20 @@ export class RealtimeClient {
         },
       });
 
+      if (this.closed) {
+        this.mediaStream.getTracks().forEach((t) => t.stop());
+        this.mediaStream = null;
+        console.log("[Realtime] startRecording aborted after getUserMedia (client closed)");
+        return;
+      }
+
       this.audioContext = new AudioContext({ sampleRate: 24000 });
       if (this.audioContext.state === "suspended") {
         await this.audioContext.resume();
+      }
+      if (this.closed) {
+        await this.abortStartRecordingAfterPartialSetup();
+        return;
       }
 
       this.audioSource = this.audioContext.createMediaStreamSource(this.mediaStream);
@@ -347,10 +422,15 @@ export class RealtimeClient {
         try {
           const workletUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/realtime-audio-worklet.js`;
           await this.audioContext.audioWorklet.addModule(workletUrl);
+          if (this.closed) {
+            await this.abortStartRecordingAfterPartialSetup();
+            return;
+          }
           this.captureWorkletNode = new AudioWorkletNode(this.audioContext, "realtime-capture-processor", {
             processorOptions: { inputSampleRate: actualRate },
           });
           this.captureWorkletNode.port.onmessage = (e: MessageEvent<{ buffer: ArrayBuffer }>) => {
+            if (this.closed) return;
             if (e.data?.buffer) {
               this.sendAudio(e.data.buffer);
               this.sendChunkCount++;
@@ -359,18 +439,31 @@ export class RealtimeClient {
               }
             }
           };
+          if (this.closed) {
+            await this.abortStartRecordingAfterPartialSetup();
+            return;
+          }
           this.audioSource.connect(this.captureWorkletNode);
           this.useWorklet = true;
           console.log("[Realtime] Recording started (AudioWorklet), context rate:", actualRate);
           return;
         } catch (workletErr) {
           console.warn("[Realtime] AudioWorklet failed, using ScriptProcessor:", workletErr);
+          if (this.closed) {
+            await this.abortStartRecordingAfterPartialSetup();
+            return;
+          }
         }
       }
 
       this.useWorklet = false;
+      if (this.closed) {
+        await this.abortStartRecordingAfterPartialSetup();
+        return;
+      }
       this.audioProcessor = this.audioContext.createScriptProcessor(4096, 1, 1);
       this.audioProcessor.onaudioprocess = (e) => {
+        if (this.closed) return;
         const inputData = e.inputBuffer.getChannelData(0);
         const outputData = e.outputBuffer.getChannelData(0);
         outputData.fill(0);
@@ -444,6 +537,7 @@ export class RealtimeClient {
   }
 
   private sendAudio(audioData: ArrayBuffer) {
+    if (this.closed) return;
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
     if (audioData.byteLength === 0) return;
 
@@ -480,7 +574,7 @@ export class RealtimeClient {
       await this.playbackContext.resume();
     }
 
-    while (this.audioQueue.length > 0) {
+    while (this.audioQueue.length > 0 && !this.closed) {
       const audioData = this.audioQueue.shift();
       if (audioData) {
         await this.playAudioChunk(audioData);
@@ -509,6 +603,7 @@ export class RealtimeClient {
   }
 
   send(message: RealtimeMessage) {
+    if (this.closed) return;
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       console.warn("[Realtime] WebSocket not open, message not sent");
       return;
@@ -518,6 +613,20 @@ export class RealtimeClient {
   }
 
   disconnect() {
+    if (this.connectPromiseSettlers) {
+      const { reject } = this.connectPromiseSettlers;
+      this.connectPromiseSettlers = null;
+      reject(new DOMException("RealtimeClient disconnected", "AbortError"));
+    }
+
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      try {
+        this.ws.send(JSON.stringify({ type: "input_audio_buffer.clear" }));
+      } catch (_) {}
+    }
+
+    this.closed = true;
+
     this.stopRecording();
     
     if (this.audioContext) {
