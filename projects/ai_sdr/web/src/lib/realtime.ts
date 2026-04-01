@@ -31,6 +31,7 @@ export class RealtimeClient {
   private audioProcessor: ScriptProcessorNode | null = null;
   private audioSource: MediaStreamAudioSourceNode | null = null;
   private captureWorkletNode: AudioWorkletNode | null = null;
+  private silentCaptureGain: GainNode | null = null;
   private audioQueue: ArrayBuffer[] = [];
   private isPlaying = false;
   private playbackContext: AudioContext | null = null;
@@ -128,6 +129,9 @@ export class RealtimeClient {
   }
 
   private seenDeltaTypes = new Set<string>();
+  /** OpenAI may send both response.output_audio.delta and response.audio.delta for the same audio — playing both causes double voice / echo */
+  private activeAssistantAudioChannel: "output_audio" | "legacy_audio" | null = null;
+
   private handleMessage(message: RealtimeMessage) {
     if (message.type !== "response.output_audio.delta" && message.type !== "response.audio.delta") {
       console.log("[Realtime] ←", message.type, message.error ? message : "");
@@ -144,18 +148,38 @@ export class RealtimeClient {
     }
 
     switch (message.type) {
-      case "response.output_audio.delta":
-      case "response.audio.delta":
-        const delta = message.delta;
-        if (delta) {
+      case "response.output_audio.delta": {
+        if (this.activeAssistantAudioChannel === "legacy_audio") {
+          break;
+        }
+        this.activeAssistantAudioChannel = "output_audio";
+        const deltaOut = message.delta;
+        if (deltaOut) {
           if (this.audioQueue.length === 0) {
             console.log("[Realtime] First output audio delta received, queueing for playback");
           }
-          const audioData = this.base64ToArrayBuffer(delta);
+          const audioData = this.base64ToArrayBuffer(deltaOut);
           this.options.onAudioDelta?.(audioData);
           this.queueAudio(audioData);
         }
         break;
+      }
+      case "response.audio.delta": {
+        if (this.activeAssistantAudioChannel === "output_audio") {
+          break;
+        }
+        this.activeAssistantAudioChannel = "legacy_audio";
+        const deltaLegacy = message.delta;
+        if (deltaLegacy) {
+          if (this.audioQueue.length === 0) {
+            console.log("[Realtime] First legacy audio delta received, queueing for playback");
+          }
+          const audioData = this.base64ToArrayBuffer(deltaLegacy);
+          this.options.onAudioDelta?.(audioData);
+          this.queueAudio(audioData);
+        }
+        break;
+      }
 
       case "response.output_audio_transcript.done":
       case "response.audio_transcript.done": {
@@ -171,6 +195,7 @@ export class RealtimeClient {
         break;
 
       case "response.done": {
+        this.activeAssistantAudioChannel = null;
         const response = (message as any).response;
         const status = response?.status;
         const statusDetails = response?.status_details;
@@ -219,6 +244,7 @@ export class RealtimeClient {
         break;
 
       case "error": {
+        this.activeAssistantAudioChannel = null;
         const msg = message.error?.message ?? (message as any).message ?? "Realtime error";
         console.error("[Realtime] Error:", message.error ?? message);
         if (typeof msg === "string" && (msg.includes("buffer too small") || msg.includes("0.00ms"))) {
@@ -290,6 +316,7 @@ export class RealtimeClient {
           channelCount: 1,
           echoCancellation: true,
           noiseSuppression: true,
+          autoGainControl: true,
         },
       });
 
@@ -344,7 +371,10 @@ export class RealtimeClient {
         }
       };
       this.audioSource.connect(this.audioProcessor);
-      this.audioProcessor.connect(this.audioContext.destination);
+      this.silentCaptureGain = this.audioContext.createGain();
+      this.silentCaptureGain.gain.value = 0;
+      this.audioProcessor.connect(this.silentCaptureGain);
+      this.silentCaptureGain.connect(this.audioContext.destination);
       console.log("[Realtime] Recording started (ScriptProcessor), context rate:", actualRate);
     } catch (error) {
       console.error("[Realtime] Error starting recording:", error);
@@ -364,9 +394,11 @@ export class RealtimeClient {
       try {
         this.audioProcessor.disconnect();
         this.audioSource.disconnect();
+        this.silentCaptureGain?.disconnect();
       } catch (_) {}
       this.audioProcessor = null;
       this.audioSource = null;
+      this.silentCaptureGain = null;
     }
     if (this.mediaStream) {
       this.mediaStream.getTracks().forEach((track) => track.stop());
@@ -489,6 +521,7 @@ export class RealtimeClient {
 
     this.audioQueue = [];
     this.seenDeltaTypes.clear();
+    this.activeAssistantAudioChannel = null;
   }
 
   // Utility functions

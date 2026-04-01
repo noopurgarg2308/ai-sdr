@@ -177,10 +177,21 @@ export async function dispatchToolCall(
   switch (name) {
     case "search_knowledge": {
       // Use hybrid search that combines Tavus KB + Your Multimodal RAG
-      const hybridResults = await hybridSearch(companyId, args.query, {
-        limit: 5,
-        preferFast: false, // Always search both for comprehensive results
-      });
+      let hybridResults;
+      try {
+        hybridResults = await hybridSearch(companyId, args.query, {
+          limit: 5,
+          preferFast: false, // Always search both for comprehensive results
+        });
+      } catch (searchError) {
+        console.error("[Tools] search_knowledge error:", searchError);
+        return {
+          results: [],
+          linkedVisuals: [],
+          visualResults: [],
+          metadata: { ragResults: 0, tavusResults: 0, latency: 0, strategy: "error" },
+        };
+      }
       
       console.log(
         `[Tools] Hybrid search found ${hybridResults.results.length} results ` +
