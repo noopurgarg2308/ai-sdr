@@ -202,6 +202,14 @@ npm run create:website -- \
   --includeImages=true
 ```
 
+### Verifying crawled content is in RAG
+
+Crawled pages become **`Document`** rows (`source: website_page`) and **`Chunk`** rows with embeddings.
+
+1. **Admin:** `/admin/companies` → company → website source → confirm **`lastCrawledAt`**, **`documentsCreated`**, **`processingStatus: completed`**.
+2. **Database:** Count `Document` / `Chunk` for that `companyId` and `source = 'website_page'` (example SQL in **[docs/VOICE_RAG_RUNTIME.md](docs/VOICE_RAG_RUNTIME.md)**).
+3. **Logs:** `[WebsiteProcessor]` lines on the server; empty-search warnings: **`search_knowledge: zero results`** (see same doc).
+
 ## 🔍 RAG Search
 
 ### How It Works
@@ -351,6 +359,12 @@ Access at `/admin/companies`:
 3. **Review Logs**: Check crawl logs for errors
 4. **Limit Scope**: Reduce maxPages/maxDepth if timeout
 
+### Voice (Realtime) and KB answers
+
+1. **Echo / double playback:** Fixed by deduplicating assistant audio delta events and keeping the mic graph from feeding capture to speakers; details in **[REALTIME_API.md](REALTIME_API.md)** and **[docs/VOICE_RAG_RUNTIME.md](docs/VOICE_RAG_RUNTIME.md)**.
+2. **Generic answers or “couldn’t fetch pricing”:** Ensure tools always return **`function_call_output`** (server handles tool errors); verify crawl/RAG data exists; grep server logs for **`search_knowledge: zero results`**.
+3. **Railway:** Application logs are under the **service → Logs** tab (not the browser console). Deploys from Git require **commit + push** if the service is connected to GitHub.
+
 ### Common Issues
 
 **Blank Images:**
@@ -424,6 +438,8 @@ See `docs/TESTING_GUIDE.md` for comprehensive testing instructions.
 ## 📚 Documentation
 
 - [Setup Guide](SETUP.md) - Detailed setup instructions
+- [Voice & RAG runtime](docs/VOICE_RAG_RUNTIME.md) - Realtime echo/tool fixes, observability, crawl verification, Railway logs
+- [Realtime API](REALTIME_API.md) - OpenAI Realtime voice integration and troubleshooting
 - [Website Crawling](docs/WEBSITE_CRAWLING_QUICKSTART.md) - Website crawl guide
 - [PDF Processing](docs/PDF_SLIDE_EXTRACTION.md) - PDF extraction details
 - [RAG Implementation](RAG_IMPLEMENTATION.md) - RAG system details

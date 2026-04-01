@@ -369,11 +369,15 @@ AI: [Continues conversation smoothly]
 
 ### What’s Working Now
 
-- **Voice capture**: AudioWorklet (primary) or ScriptProcessor (fallback), 24kHz PCM16, resampled from device rate.
+- **Voice capture**: AudioWorklet (primary) or ScriptProcessor (fallback), 24kHz PCM16, resampled from device rate; `autoGainControl` where supported; ScriptProcessor path does **not** route capture to speakers in a way that causes echo.
+- **Assistant audio dedupe**: Some sessions emit both `response.output_audio.delta` and `response.audio.delta` for the same audio; the client uses **one** stream per response and resets on `response.done` / error / disconnect to avoid **double playback / echo**.
 - **Server VAD**: Server detects end of speech and commits the buffer; no manual commit when user clicks “Stop Speaking” (avoids “buffer too small”).
 - **Playback**: Dedicated `playbackContext` so stopping the mic doesn’t close the context used for assistant audio.
 - **Transcript**: Assistant text shown once per turn (only from `response.output_audio_transcript.done` to avoid duplicates).
+- **Tool calls**: If `onFunctionCall` throws, the client still sends **`function_call_output`** (JSON with `error`, `message`, empty `results`) and **`response.create`**, so the model does not invent “failed to fetch” when the real issue was a server exception.
 - **Errors**: Quota and other failures surfaced in the UI with clear messages (e.g. insufficient_quota → billing link).
+
+**Deeper reference:** [docs/VOICE_RAG_RUNTIME.md](docs/VOICE_RAG_RUNTIME.md) (RAG tool hardening, logs, crawl verification, Railway).
 
 ### Files Involved
 
@@ -403,7 +407,8 @@ Checks: `OPENAI_API_KEY` set, key valid, Realtime model available. Install `ws` 
 | **“Insufficient quota”** | Add payment method or raise limits at https://platform.openai.com/account/billing. |
 | **No response / response failed** | Check browser console for `response.done status:` and error details; UI shows friendly message when status is `failed`. |
 | **Same text 3x** | Assistant transcript is shown only from transcript-done event; other handlers no longer add it. |
-| **Echo** | Output buffer from capture is silence; no routing of mic to speakers. |
+| **Echo / double voice** | Dedupe `response.output_audio.delta` vs `response.audio.delta` per response; mic graph avoids feeding capture to speakers (ScriptProcessor: zero gain to destination). See [docs/VOICE_RAG_RUNTIME.md](docs/VOICE_RAG_RUNTIME.md). |
+| **Vague voice answers (“couldn’t get pricing”)** | Ensure crawl/RAG has data; check server logs for **`search_knowledge: zero results`**. Tool handler must always return output—server-side `search_knowledge` uses resolved `companyId`, safe metadata parsing, snippet caps, and Realtime client sends error-shaped `function_call_output` on any tool throw. |
 
 ### Voice Detection (Current)
 

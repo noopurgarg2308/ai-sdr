@@ -60,6 +60,7 @@ This folder and the project root contain all documentation for the AI SDR platfo
 
 | File | Type | What it covers |
 |------|------|----------------|
+| **VOICE_RAG_RUNTIME.md** | Operations | Realtime echo/audio dedupe, `search_knowledge` reliability, server logs (`search_knowledge: zero results`), verifying website crawl in RAG (SQL), GitHub/Railway deploy notes. |
 | **TESTING_GUIDE.md** | Testing | How to test the platform. |
 | **PDF_TEST_QUERIES.md** | Testing | Example/test queries for PDF RAG. |
 | **SLIDE_EXTRACTION_TEST_QUERIES.md** | Testing | Test queries for slide extraction. |

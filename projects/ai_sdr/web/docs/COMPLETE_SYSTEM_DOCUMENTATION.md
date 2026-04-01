@@ -14,6 +14,7 @@
 10. [Database Schema](#database-schema)
 11. [Configuration](#configuration)
 12. [Troubleshooting](#troubleshooting)
+13. [Voice, RAG tools & production operations](#voice-rag-tools--production-operations)
 
 ---
 
@@ -852,6 +853,33 @@ npx tsx scripts/linkWebsiteImagesToChunks.ts --companyId=<id>
 
 ---
 
+## Voice, RAG tools & production operations
+
+*Last expanded: 2026-03-30. Canonical detail: **[VOICE_RAG_RUNTIME.md](./VOICE_RAG_RUNTIME.md)**.*
+
+### OpenAI Realtime (voice widget)
+
+- **Echo / duplicate assistant audio:** The Realtime client deduplicates assistant audio by accepting only one of `response.output_audio.delta` or `response.audio.delta` per response; state resets on `response.done`, errors, or disconnect (`src/lib/realtime.ts`).
+- **Microphone vs speakers:** Capture is prepared so the mic path does not create audible feedback (including ScriptProcessor fallback with zero gain to the destination node).
+- **Function calling:** If tool execution throws, the client still submits `function_call_output` with an error-shaped JSON payload and triggers `response.create`, so the model receives a real tool outcome instead of guessing that “fetch failed.”
+
+### `search_knowledge` (hybrid RAG + visuals)
+
+- **`resolveCompanyId`:** Exported from `src/lib/hybridSearch.ts`; tools use it so Prisma queries and hybrid search use the database **company id** even when routing passed a slug.
+- **Robustness:** Hybrid search failures return structured empty results; linked-asset metadata uses safe `JSON.parse`; result snippets are truncated for large Realtime payloads (`src/lib/tools.ts`).
+- **Observability:** When hybrid search returns no hits, the server logs a **`search_knowledge: zero results`** line (company id, query preview, Tavus/RAG counts, strategy)—useful on **Railway** under **Service → Logs**.
+
+### Verifying website crawl → RAG
+
+- **Admin:** Website source metadata after crawl: `lastCrawledAt`, `pagesProcessed`, `documentsCreated`, `processingStatus`.
+- **Database:** Count `Document` where `source = 'website_page'` and join `Chunk` for the same company—non-zero chunks indicate ingested, embedded content. Example SQL is in **[VOICE_RAG_RUNTIME.md](./VOICE_RAG_RUNTIME.md)**.
+
+### GitHub and Railway
+
+- Production code updates typically require **`git commit`** and **`git push`** to the branch Railway watches; logs for debugging are **server** stdout/stderr, not the browser devtools console.
+
+---
+
 ## Best Practices
 
 ### Content Ingestion
@@ -888,5 +916,5 @@ npx tsx scripts/linkWebsiteImagesToChunks.ts --companyId=<id>
 
 ---
 
-**Last Updated**: 2024-12-29  
-**Version**: 1.0.0
+**Last Updated**: 2026-03-30  
+**Version**: 1.1.0
