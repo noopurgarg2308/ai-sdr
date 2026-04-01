@@ -60,20 +60,13 @@ export default function MarketingPage() {
         <p className="text-stone-600 max-w-2xl mb-10">
           Try it before you make it visible. No lock-in. Cancel anytime.
         </p>
-        <div className="flex flex-wrap gap-4">
-          <a
-            href="#contact"
-            className="inline-block bg-stone-900 text-white px-6 py-3 rounded-lg font-semibold hover:bg-stone-800 transition-colors"
-          >
-            Get in touch
-          </a>
-          <button
-            onClick={() => setIsWidgetOpen(true)}
-            className="inline-block border border-stone-300 text-stone-700 px-6 py-3 rounded-lg font-semibold hover:bg-stone-100 transition-colors"
-          >
-            Try the demo
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setIsWidgetOpen(true)}
+          className="inline-block border border-stone-300 text-stone-700 px-6 py-3 rounded-lg font-semibold hover:bg-stone-100 transition-colors"
+        >
+          Try the demo
+        </button>
       </section>
 
       {/* What it does */}
