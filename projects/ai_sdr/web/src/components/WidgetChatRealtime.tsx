@@ -186,13 +186,16 @@ ANSWER LENGTH: Start short. Your first response to any question must be 2-3 line
           lastActivityRef.current = Date.now(); // AI is talking, user is listening — reset idle timer
         },
         onTranscript: (text, role) => {
+          const trimmed = text?.trim() ?? "";
+          if (!trimmed) return;
+
           if (role === "user") lastActivityRef.current = Date.now();
           if (role === "assistant") lastActivityRef.current = Date.now(); // User is listening, reset idle timer
 
           const newMessage: ChatMessage = {
             id: `msg_${Date.now()}_${Math.random()}`,
             role: role as "user" | "assistant",
-            content: text,
+            content: trimmed,
             createdAt: new Date().toISOString(),
           };
           setMessages((prev) => [...prev, newMessage]);

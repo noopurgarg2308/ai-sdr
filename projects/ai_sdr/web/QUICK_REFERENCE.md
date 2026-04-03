@@ -6,6 +6,15 @@
 **GitHub**: `https://github.com/noopurgarg2308/ai-sdr.git`  
 **Working Directory**: `/Users/noopurgarg/openai-dev/projects/ai_sdr/web`
 
+## 🌐 Production (Railway)
+
+**Base URL:** `https://ai-sdr-production-59e6.up.railway.app`  
+**Super admin (companies):** `https://ai-sdr-production-59e6.up.railway.app/admin/companies`  
+**Voice widget:** `https://ai-sdr-production-59e6.up.railway.app/widget/<company-slug>`  
+**Marketing site:** `https://ai-sdr-production-59e6.up.railway.app/`
+
+Update this block if Railway assigns a new hostname.
+
 ## ✅ Verify You're in the Right Place
 
 Run these commands:

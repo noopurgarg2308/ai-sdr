@@ -127,6 +127,11 @@ export class RealtimeClient {
       instructions: this.options.instructions,
       input_audio_format: "pcm16",
       output_audio_format: "pcm16",
+      // Required for visitor questions to appear in the widget (conversation.item.input_audio_transcription.completed)
+      input_audio_transcription: {
+        model: "whisper-1",
+        language: "en",
+      },
       turn_detection: {
         type: "server_vad",
         threshold: 0.3,
@@ -240,28 +245,17 @@ export class RealtimeClient {
         break;
       }
 
-      case "conversation.item.input_audio_transcription.completed":
-        if (message.transcript) {
-          this.options.onTranscript?.(message.transcript, "user");
-        }
-        break;
-
-      case "conversation.item.added":
-      case "conversation.item.done": {
-        const item = message.item;
-        if (!item?.role) break;
-        // Only show user transcript here; assistant transcript comes from response.output_audio_transcript.done only (avoids duplicate messages)
-        if (item.role === "assistant") break;
-        const content = Array.isArray(item.content) ? item.content : item.content ? [item.content] : [];
-        for (const c of content) {
-          const text = c?.transcript ?? c?.text;
-          if (text && item.role === "user") {
-            this.options.onTranscript?.(text, "user");
-            break;
-          }
+      case "conversation.item.input_audio_transcription.completed": {
+        const t = typeof message.transcript === "string" ? message.transcript.trim() : "";
+        if (t) {
+          this.options.onTranscript?.(t, "user");
         }
         break;
       }
+
+      case "conversation.item.input_audio_transcription.failed":
+        console.warn("[Realtime] Input audio transcription failed:", message.error ?? message);
+        break;
 
       case "response.function_call_arguments.done":
         this.handleFunctionCall(message);
