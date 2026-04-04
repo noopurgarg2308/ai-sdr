@@ -39,6 +39,8 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
   const sessionIdRef = useRef<string | null>(null);
   const messagesRef = useRef<ChatMessage[]>(messages);
   const lastActivityRef = useRef<number>(Date.now());
+  /** Read inside idle interval — avoids stale isSpeaking and avoids re-creating the interval every toggle */
+  const isSpeakingRef = useRef(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -51,6 +53,10 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+
+  useEffect(() => {
+    isSpeakingRef.current = isSpeaking;
+  }, [isSpeaking]);
 
   const disconnect = useCallback((reason?: "idle") => {
     const sid = sessionIdRef.current;
@@ -81,22 +87,24 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
     }
   }, [companyId]);
 
-  // Idle timeout: 15s of no activity (see IDLE_TIMEOUT_MS) — assume they walked away and disconnect
-  // Do NOT disconnect while the AI is speaking (isSpeaking) — wait until they finish
+  // Idle timeout: 15s after last meaningful turn (see IDLE_TIMEOUT_MS).
+  // Do NOT use continuous mic chunks to reset the timer — the mic always streams PCM, so that would never time out.
+  // Reset lastActivity on: user/assistant transcripts, and AI audio deltas (assistant is responding).
+  // Do NOT disconnect while the AI is speaking (isSpeakingRef) — wait until they finish.
   useEffect(() => {
     if (!isConnected) return;
 
     const interval = setInterval(() => {
-      if (isSpeaking) return; // AI is talking, don't disconnect
+      if (isSpeakingRef.current) return;
       const elapsed = Date.now() - lastActivityRef.current;
       if (elapsed >= IDLE_TIMEOUT_MS) {
         clearInterval(interval);
         disconnect("idle");
       }
-    }, 2000); // Check every 2 seconds
+    }, 1000);
 
     return () => clearInterval(interval);
-  }, [isConnected, disconnect, isSpeaking]);
+  }, [isConnected, disconnect]);
 
   // Cleanup on unmount: log conversation if any, then disconnect
   useEffect(() => {
@@ -177,9 +185,6 @@ ANSWER LENGTH: Start short. Your first response to any question must be 2-3 line
           setError(err.message);
           setIsRecording(false);
           setIsSpeaking(false);
-        },
-        onUserAudio: () => {
-          lastActivityRef.current = Date.now(); // User is speaking — reset idle timer (transcript arrives later)
         },
         onAudioDelta: () => {
           setIsSpeaking(true);
