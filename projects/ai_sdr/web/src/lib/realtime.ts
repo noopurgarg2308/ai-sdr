@@ -52,6 +52,10 @@ export class RealtimeClient {
   }
   private sessionReadyResolve: (() => void) | null = null;
   private sessionReadyPromise: Promise<void>;
+  /** Incremental input transcription per conversation item (delta events) */
+  private inputTranscriptByItemId = new Map<string, string>();
+  /** Avoid duplicate user bubbles when both transcription.* and conversation.item.done fire */
+  private emittedUserTranscriptItemIds = new Set<string>();
 
   constructor(options: RealtimeOptions) {
     this.options = {
@@ -127,10 +131,9 @@ export class RealtimeClient {
       instructions: this.options.instructions,
       input_audio_format: "pcm16",
       output_audio_format: "pcm16",
-      // Required for visitor questions to appear in the widget (conversation.item.input_audio_transcription.completed)
+      // User-visible transcript: transcription.completed / .delta + conversation.item.done fallback
       input_audio_transcription: {
-        model: "whisper-1",
-        language: "en",
+        model: "gpt-4o-mini-transcribe",
       },
       turn_detection: {
         type: "server_vad",
@@ -171,7 +174,12 @@ export class RealtimeClient {
     this.options.onMessage?.(message);
 
     if (message.type === "session.updated" || message.type === "session.created") {
-      console.log("[Realtime] Session ready");
+      const sess = (message as any).session;
+      if (sess?.input_audio_transcription) {
+        console.log("[Realtime] Session ready; input_audio_transcription:", sess.input_audio_transcription);
+      } else {
+        console.log("[Realtime] Session ready (no input_audio_transcription field on session object — may be normal for this API shape)");
+      }
       this.sessionReadyResolve?.();
       this.sessionReadyResolve = null;
     }
@@ -241,14 +249,30 @@ export class RealtimeClient {
           this.options.onError?.(new Error(friendly));
           break;
         }
-        // Assistant transcript is shown only from response.output_audio_transcript.done to avoid duplicates
+        break;
+      }
+
+      case "conversation.item.input_audio_transcription.delta": {
+        const itemId = (message as any).item_id as string | undefined;
+        const delta = typeof (message as any).delta === "string" ? (message as any).delta : "";
+        if (!itemId || !delta) break;
+        const prev = this.inputTranscriptByItemId.get(itemId) ?? "";
+        this.inputTranscriptByItemId.set(itemId, prev + delta);
         break;
       }
 
       case "conversation.item.input_audio_transcription.completed": {
-        const t = typeof message.transcript === "string" ? message.transcript.trim() : "";
+        const itemId = ((message as any).item_id as string | undefined) ?? null;
+        const fromEvent =
+          typeof (message as any).transcript === "string" ? (message as any).transcript.trim() : "";
+        const fromDelta = itemId ? (this.inputTranscriptByItemId.get(itemId) ?? "").trim() : "";
+        if (itemId) this.inputTranscriptByItemId.delete(itemId);
+        const t = fromEvent || fromDelta;
         if (t) {
-          this.options.onTranscript?.(t, "user");
+          console.log("[Realtime] User transcript (input_audio_transcription.completed):", t.slice(0, 120) + (t.length > 120 ? "…" : ""));
+          this.tryEmitUserTranscript(t, itemId);
+        } else {
+          console.warn("[Realtime] input_audio_transcription.completed with empty transcript", { itemId });
         }
         break;
       }
@@ -256,6 +280,17 @@ export class RealtimeClient {
       case "conversation.item.input_audio_transcription.failed":
         console.warn("[Realtime] Input audio transcription failed:", message.error ?? message);
         break;
+
+      case "conversation.item.done": {
+        const item = (message as any).item;
+        const text = this.extractUserTranscriptFromConversationItem(item);
+        const itemId = item?.id as string | undefined;
+        if (text) {
+          console.log("[Realtime] User transcript (conversation.item.done):", text.slice(0, 120) + (text.length > 120 ? "…" : ""));
+          this.tryEmitUserTranscript(text, itemId);
+        }
+        break;
+      }
 
       case "response.function_call_arguments.done":
         this.handleFunctionCall(message);
@@ -640,6 +675,32 @@ export class RealtimeClient {
     this.audioQueue = [];
     this.seenDeltaTypes.clear();
     this.activeAssistantAudioChannel = null;
+    this.inputTranscriptByItemId.clear();
+    this.emittedUserTranscriptItemIds.clear();
+  }
+
+  private tryEmitUserTranscript(text: string, itemId?: string | null) {
+    const t = (text || "").trim();
+    if (!t) return;
+    if (itemId && this.emittedUserTranscriptItemIds.has(itemId)) return;
+    if (itemId) this.emittedUserTranscriptItemIds.add(itemId);
+    this.options.onTranscript?.(t, "user");
+  }
+
+  /** Finalized user items may include input_audio.transcript when transcription is enabled */
+  private extractUserTranscriptFromConversationItem(item: any): string {
+    if (!item || item.role !== "user") return "";
+    const content = item.content;
+    const parts = Array.isArray(content) ? content : content ? [content] : [];
+    for (const c of parts) {
+      if (c?.type === "input_audio" && typeof c.transcript === "string" && c.transcript.trim()) {
+        return c.transcript.trim();
+      }
+      if (typeof c?.transcript === "string" && c.transcript.trim()) {
+        return c.transcript.trim();
+      }
+    }
+    return "";
   }
 
   // Utility functions
