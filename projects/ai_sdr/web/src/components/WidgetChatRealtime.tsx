@@ -533,7 +533,7 @@ ANSWER LENGTH: Start short. Your first response to any question must be 2-3 line
             {!isConnected ? (
               <button
                 onClick={initializeRealtime}
-                className="bg-sky-400 text-white px-5 py-2 rounded-lg font-semibold text-sm hover:bg-sky-500 transition-colors"
+                className="bg-black text-white px-5 py-2 rounded-lg font-semibold text-sm hover:bg-neutral-800 transition-colors"
               >
                 Start speaking
               </button>

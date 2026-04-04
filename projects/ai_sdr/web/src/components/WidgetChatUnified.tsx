@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import WidgetChatRealtime from "./WidgetChatRealtime";
 import WidgetChatText from "./WidgetChatText";
 import WidgetChatTavus from "./WidgetChatTavus";
+import PoweredByOpenAI from "./PoweredByOpenAI";
 
 type ChatMode = "realtime" | "text" | "tavus";
 
@@ -134,10 +135,14 @@ export default function WidgetChatUnified({ companyId, defaultMode = "realtime",
       )}
 
       {/* Render Selected Mode */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-hidden">
         {mode === "realtime" && <WidgetChatRealtime companyId={companyId} />}
         {mode === "text" && <WidgetChatText companyId={companyId} />}
         {mode === "tavus" && hasTavus && <WidgetChatTavus companyId={companyId} />}
+      </div>
+
+      <div className="flex-shrink-0 border-t border-stone-200 bg-stone-50 py-2 px-3">
+        <PoweredByOpenAI />
       </div>
     </div>
   );

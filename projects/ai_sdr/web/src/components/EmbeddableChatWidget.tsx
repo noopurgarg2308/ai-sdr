@@ -54,12 +54,12 @@ export default function EmbeddableChatWidget({ companyId, initialOpen = false, o
             className="relative z-10 w-full max-w-lg h-[min(600px,calc(100vh-2rem))] rounded-xl shadow-2xl border border-stone-200 bg-white flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex-shrink-0 flex items-center px-4 py-3 bg-sky-400 text-white">
+            <div className="flex-shrink-0 flex items-center px-4 py-3 bg-black text-white">
               <div className="w-7 flex-shrink-0" aria-hidden />
               <span className="font-semibold text-sm flex-1 text-center">{companyName ? `${companyName} AI Agent` : "AI Agent"}</span>
               <button
                 onClick={() => setOpen(false)}
-                className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-md hover:bg-sky-500 transition-colors text-white"
+                className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-md hover:bg-white/15 transition-colors text-white"
                 aria-label="Close"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" >
