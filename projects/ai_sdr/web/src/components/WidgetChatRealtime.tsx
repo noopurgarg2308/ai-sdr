@@ -41,6 +41,8 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
   const lastActivityRef = useRef<number>(Date.now());
   /** Read inside idle interval — avoids stale isSpeaking and avoids re-creating the interval every toggle */
   const isSpeakingRef = useRef(false);
+  /** True after user transcript until first assistant audio or playback finished — avoids idle during slow model latency */
+  const awaitingAssistantRef = useRef(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -80,6 +82,7 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
     setIsConnected(false);
     setIsRecording(false);
     setIsSpeaking(false);
+    awaitingAssistantRef.current = false;
     if (reason === "idle") {
       setError("Session ended due to inactivity. Connect again to continue.");
     } else {
@@ -87,15 +90,14 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
     }
   }, [companyId]);
 
-  // Idle timeout: 15s after last meaningful turn (see IDLE_TIMEOUT_MS).
-  // Do NOT use continuous mic chunks to reset the timer — the mic always streams PCM, so that would never time out.
-  // Reset lastActivity on: user/assistant transcripts, and AI audio deltas (assistant is responding).
-  // Do NOT disconnect while the AI is speaking (isSpeakingRef) — wait until they finish.
+  // Idle timeout: 15s after lastActivityRef bump (user spoke, or assistant audio fully finished locally).
+  // Block while isSpeakingRef (TTS playing) or awaitingAssistantRef (user spoke, model not yet audible).
   useEffect(() => {
     if (!isConnected) return;
 
     const interval = setInterval(() => {
       if (isSpeakingRef.current) return;
+      if (awaitingAssistantRef.current) return;
       const elapsed = Date.now() - lastActivityRef.current;
       if (elapsed >= IDLE_TIMEOUT_MS) {
         clearInterval(interval);
@@ -182,20 +184,28 @@ ANSWER LENGTH: Start short. Your first response to any question must be 2-3 line
         },
         onError: (err) => {
           console.error("[Realtime] Error:", err);
+          awaitingAssistantRef.current = false;
           setError(err.message);
           setIsRecording(false);
           setIsSpeaking(false);
         },
         onAudioDelta: () => {
+          awaitingAssistantRef.current = false;
           setIsSpeaking(true);
-          lastActivityRef.current = Date.now(); // AI is talking, user is listening — reset idle timer
+        },
+        onAssistantPlaybackFinished: () => {
+          awaitingAssistantRef.current = false;
+          setIsSpeaking(false);
+          lastActivityRef.current = Date.now(); // 15s idle starts after local audio actually finishes
         },
         onTranscript: (text, role) => {
           const trimmed = text?.trim() ?? "";
           if (!trimmed) return;
 
-          if (role === "user") lastActivityRef.current = Date.now();
-          if (role === "assistant") lastActivityRef.current = Date.now(); // User is listening, reset idle timer
+          if (role === "user") {
+            lastActivityRef.current = Date.now();
+            awaitingAssistantRef.current = true;
+          }
 
           const newMessage: ChatMessage = {
             id: `msg_${Date.now()}_${Math.random()}`,
@@ -205,9 +215,7 @@ ANSWER LENGTH: Start short. Your first response to any question must be 2-3 line
           };
           setMessages((prev) => [...prev, newMessage]);
 
-          if (role === "assistant") {
-            setIsSpeaking(false);
-          }
+          // Assistant transcript can arrive before TTS playback finishes — isSpeaking clears in onAssistantPlaybackFinished
         },
         onFunctionCall: async (name, args) => {
           console.log("[Realtime] Function call:", name, args);

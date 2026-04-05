@@ -21,6 +21,11 @@ export interface RealtimeOptions {
   onFunctionCall?: (name: string, args: any) => Promise<any>;
   /** Called when user audio is sent to server (for idle detection while speaking). Throttled to ~every 20 chunks. */
   onUserAudio?: () => void;
+  /**
+   * Local speaker output has finished (playback queue drained, debounced).
+   * Unlike assistant transcript.done, this runs after audio finishes playing — use for idle timeout / "AI is speaking" UI.
+   */
+  onAssistantPlaybackFinished?: () => void;
 }
 
 export class RealtimeClient {
@@ -42,6 +47,8 @@ export class RealtimeClient {
   private audioQueue: ArrayBuffer[] = [];
   private isPlaying = false;
   private playbackContext: AudioContext | null = null;
+  /** Debounce notifying UI that assistant audio finished (handles gaps between deltas + decode) */
+  private assistantPlaybackFinishedTimer: ReturnType<typeof setTimeout> | null = null;
   private sendChunkCount = 0;
   private totalBytesSent = 0;
   private useWorklet = false;
@@ -192,6 +199,7 @@ export class RealtimeClient {
         this.activeAssistantAudioChannel = "output_audio";
         const deltaOut = message.delta;
         if (deltaOut) {
+          this.cancelAssistantPlaybackFinishedTimer();
           if (this.audioQueue.length === 0) {
             console.log("[Realtime] First output audio delta received, queueing for playback");
           }
@@ -208,6 +216,7 @@ export class RealtimeClient {
         this.activeAssistantAudioChannel = "legacy_audio";
         const deltaLegacy = message.delta;
         if (deltaLegacy) {
+          this.cancelAssistantPlaybackFinishedTimer();
           if (this.audioQueue.length === 0) {
             console.log("[Realtime] First legacy audio delta received, queueing for playback");
           }
@@ -246,9 +255,12 @@ export class RealtimeClient {
               ? "OpenAI quota exceeded. Add payment method or increase limits at https://platform.openai.com/account/billing"
               : message;
           console.error("[Realtime] Response failed:", message);
+          this.cancelAssistantPlaybackFinishedTimer();
           this.options.onError?.(new Error(friendly));
           break;
         }
+        // Covers text-only / tool-only turns (no audio) and backs up playback-drain detection
+        this.scheduleAssistantPlaybackFinished();
         break;
       }
 
@@ -591,6 +603,25 @@ export class RealtimeClient {
     }
   }
 
+  private cancelAssistantPlaybackFinishedTimer() {
+    if (this.assistantPlaybackFinishedTimer) {
+      clearTimeout(this.assistantPlaybackFinishedTimer);
+      this.assistantPlaybackFinishedTimer = null;
+    }
+  }
+
+  /** When queue is idle, notify after debounce so we do not fire between PCM chunks. */
+  private scheduleAssistantPlaybackFinished() {
+    if (this.closed) return;
+    this.cancelAssistantPlaybackFinishedTimer();
+    this.assistantPlaybackFinishedTimer = setTimeout(() => {
+      this.assistantPlaybackFinishedTimer = null;
+      if (this.closed) return;
+      if (this.isPlaying || this.audioQueue.length > 0) return;
+      this.options.onAssistantPlaybackFinished?.();
+    }, 450);
+  }
+
   private async playAudioQueue() {
     if (this.isPlaying || this.audioQueue.length === 0) return;
     
@@ -611,6 +642,7 @@ export class RealtimeClient {
     }
 
     this.isPlaying = false;
+    this.scheduleAssistantPlaybackFinished();
   }
 
   private async playAudioChunk(audioData: ArrayBuffer) {
@@ -655,6 +687,8 @@ export class RealtimeClient {
     }
 
     this.closed = true;
+
+    this.cancelAssistantPlaybackFinishedTimer();
 
     this.stopRecording();
     
