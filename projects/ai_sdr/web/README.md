@@ -79,6 +79,7 @@ A comprehensive multi-tenant AI Sales Development Representative (SDR) platform 
 5. **Access the app**
    - Marketing site: http://localhost:3000
    - Admin: http://localhost:3000/admin/companies
+   - **Deployed (Railway) URL patterns** (marketing, admin, widget): see `QUICK_REFERENCE.md`
 
 ## 🏗️ Architecture
 

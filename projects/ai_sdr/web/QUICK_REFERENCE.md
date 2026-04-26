@@ -6,14 +6,29 @@
 **GitHub**: `https://github.com/noopurgarg2308/ai-sdr.git`  
 **Working Directory**: `/Users/noopurgarg/openai-dev/projects/ai_sdr/web`
 
-## 🌐 Production (Railway)
+## 🌐 Deployed app (Railway) — URL patterns
 
-**Base URL:** `https://ai-sdr-production-59e6.up.railway.app`  
-**Super admin (companies):** `https://ai-sdr-production-59e6.up.railway.app/admin/companies`  
-**Voice widget:** `https://ai-sdr-production-59e6.up.railway.app/widget/<company-slug>`  
-**Marketing site:** `https://ai-sdr-production-59e6.up.railway.app/`
+Use these when testing **production**, not your local machine. Replace `<company-slug>` with a real slug from Admin (e.g. the marketing demo uses `premcompany`).
 
-Update this block if Railway assigns a new hostname.
+**Base URL:** `https://ai-sdr-production-59e6.up.railway.app`
+
+| What to test | URL |
+|--------------|-----|
+| Marketing page (hero “Ask me anything”, floating widget) | `https://ai-sdr-production-59e6.up.railway.app/` |
+| Admin (companies, API keys, sources) | `https://ai-sdr-production-59e6.up.railway.app/admin/companies` |
+| Widget only (embed or direct open) | `https://ai-sdr-production-59e6.up.railway.app/widget/<company-slug>` |
+
+**After deploy issues:** Ensure Railway has the same env vars as local (`OPENAI_API_KEY`, `DATABASE_URL`, etc.). Mic and permissions apply to the **deployed origin** (this domain), not `localhost`.
+
+**Hostname changes:** If Railway assigns a new `*.up.railway.app` name or a custom domain, update the base URL everywhere in this section.
+
+## 💻 Local dev — URL patterns
+
+| What to test | URL |
+|--------------|-----|
+| Marketing site | `http://localhost:3000` |
+| Admin | `http://localhost:3000/admin/companies` |
+| Widget only | `http://localhost:3000/widget/<company-slug>` |
 
 ## ✅ Verify You're in the Right Place
 

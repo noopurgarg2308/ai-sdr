@@ -403,6 +403,7 @@ Checks: `OPENAI_API_KEY` set, key valid, Realtime model available. Install `ws` 
 | Issue | What to do |
 |-------|------------|
 | **“Buffer too small”** | Don’t send commit when user clicks Stop; server VAD already commits. Fixed by not calling `commitAndRespond()` on Stop. |
+| **“Conversation already has an active response in progress”** | Session `turn_detection` should set `interrupt_response: true` (and `create_response: true`) so a new user turn can cancel the in-flight response; see `initializeSession` in `src/lib/realtime.ts`. |
 | **“Unknown parameter: session.type”** | Use flat session schema (no nested `audio.input`); required for `gpt-4o-realtime-preview-2024-12-17`. |
 | **“Insufficient quota”** | Add payment method or raise limits at https://platform.openai.com/account/billing. |
 | **No response / response failed** | Check browser console for `response.done status:` and error details; UI shows friendly message when status is `failed`. |
@@ -416,6 +417,8 @@ Checks: `OPENAI_API_KEY` set, key valid, Realtime model available. Install `ws` 
 - **Threshold**: 0.3  
 - **Silence duration**: 600ms  
 - **Prefix padding**: 400ms  
+- **`create_response`**: `true` — VAD end-of-speech can start a new model response.  
+- **`interrupt_response`**: `true` — if the user speaks while a response is still active, the server cancels that response first (avoids Realtime error: “Conversation already has an active response in progress…”).  
 
 ---
 

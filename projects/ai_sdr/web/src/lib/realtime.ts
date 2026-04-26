@@ -147,6 +147,10 @@ export class RealtimeClient {
         threshold: 0.3,
         prefix_padding_ms: 400,
         silence_duration_ms: 600,
+        // Avoid "active response in progress" when VAD fires again while a response is still streaming;
+        // cancel the in-flight response when the user starts speaking (barge-in).
+        create_response: true,
+        interrupt_response: true,
       },
     };
 
