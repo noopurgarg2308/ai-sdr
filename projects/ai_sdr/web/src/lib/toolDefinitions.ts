@@ -9,7 +9,7 @@ export const toolDefinitions = [
     function: {
       name: "search_knowledge",
       description:
-        "Search the knowledge base using semantic search. Use this tool to find information about ANY topic - the knowledge base may contain documentation, FAQs, product information, company information, images, slides, charts, and visual content. ALWAYS use this tool first when answering questions, especially when users ask to see images or visuals. When this tool returns linked visuals (images, slides, charts), they are automatically displayed in a visual section below your response - you don't need to mention them in your text. Just answer the question naturally.",
+        "REQUIRED for company-specific questions: search this tenant's knowledge base (PDFs, crawled website, FAQs). Call before answering about products, pricing, features, or what the company does. Do not use general world knowledge when results are empty—follow the guidance field. When linked visuals are returned, they are shown automatically; do not list image descriptions in your reply.",
       parameters: {
         type: "object",
         properties: {

@@ -361,7 +361,24 @@ export class RealtimeClient {
   private async handleFunctionCall(message: RealtimeMessage) {
     if (!this.options.onFunctionCall) return;
 
-    const { name, arguments: argsStr, call_id } = message;
+    const name =
+      (message as RealtimeMessage).name ??
+      (message as any).function?.name ??
+      (message as any).item?.name;
+    const argsStr =
+      (message as RealtimeMessage).arguments ??
+      (message as any).function?.arguments ??
+      (message as any).item?.arguments;
+    const call_id =
+      (message as RealtimeMessage).call_id ??
+      (message as any).function?.call_id ??
+      (message as any).item?.call_id;
+
+    if (!name || !call_id) {
+      console.warn("[Realtime] function_call_arguments.done missing name or call_id", message);
+      return;
+    }
+
     const args = JSON.parse(argsStr || "{}");
 
     try {

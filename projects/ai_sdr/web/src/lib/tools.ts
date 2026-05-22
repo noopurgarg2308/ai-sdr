@@ -211,6 +211,14 @@ export async function dispatchToolCall(
         console.warn(
           `[Tools] search_knowledge: zero results (companyId=${dbCompanyId}, query="${q}", tavus=${hybridResults.metadata.tavusResults}, rag=${hybridResults.metadata.ragResults}, strategy=${hybridResults.metadata.strategy})`
         );
+        return {
+          results: [],
+          linkedVisuals: [],
+          visualResults: [],
+          metadata: hybridResults.metadata,
+          guidance:
+            "NO_MATCH: The knowledge base returned no content for this query. Do NOT answer from general training data or the open web. Tell the visitor you do not have that information in the company's documentation and offer to connect them with the team.",
+        };
       }
 
       // Extract media asset IDs from search results

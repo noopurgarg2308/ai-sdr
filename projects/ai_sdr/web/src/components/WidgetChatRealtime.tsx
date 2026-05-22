@@ -146,30 +146,29 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
 
       const { apiKey, model } = await response.json();
 
-      // Get company config for system instructions and tools
-      const companyResponse = await fetch(`/api/admin/companies?slug=${companyId}`);
-      let instructions = "You are a helpful AI sales assistant.";
+      // Company-specific instructions (same buildSystemPrompt as text chat + voice rules)
+      const configResponse = await fetch(`/api/widget/${companyId}/config`);
+      let instructions =
+        "You are a helpful AI sales assistant. For any company-specific question, call search_knowledge first. Never answer from general knowledge when the knowledge base has no match.";
       let tools = toolDefinitions;
 
-      if (companyResponse.ok) {
-        const companies = await companyResponse.json();
-        const company = companies.find((c: any) => c.slug === companyId);
-        if (company) {
-          const useVisuals = company.useVisuals ?? false;
-          tools = useVisuals ? toolDefinitions : toolDefinitions.filter(
-            (t: any) => t.function.name !== "get_demo_clip" && t.function.name !== "show_visual"
-          );
-          const visualNote = useVisuals
-            ? "Use show_visual, get_demo_clip, or create_meeting_link when appropriate. When search_knowledge returns linked visuals, they are shown automatically—do not describe them in your reply."
-            : "Visuals are disabled. Answer in text/voice only. Do NOT use get_demo_clip or show_visual. Do not offer to show images, charts, or demos.";
-          instructions = `You are an AI SDR for ${company.displayName}. ${company.shortDescription || ''}
-
-Be conversational and helpful. Ask about their role and needs.
-
-CRITICAL: Always use the search_knowledge tool when answering questions about ${company.displayName}, its products, pricing, features, or documentation. Never rely on general knowledge for company-specific questions. Use create_meeting_link when the visitor is ready. When the user says they are done (e.g. "end conversation", "goodbye", "that's all"), call end_conversation immediately—do not give a long verbal farewell.
-
-ANSWER LENGTH: Start short. Your first response to any question must be 2-3 lines max—crisp and to the point. Then ask: "Would you like me to go into more detail?" or "Want more details?" Only provide longer, deeper answers when the user says yes or asks for more. ${visualNote}`;
+      if (configResponse.ok) {
+        const { instructions: companyInstructions, useVisuals } = await configResponse.json();
+        if (companyInstructions) {
+          instructions = companyInstructions;
         }
+        tools = useVisuals
+          ? toolDefinitions
+          : toolDefinitions.filter(
+              (t: any) =>
+                t.function.name !== "get_demo_clip" && t.function.name !== "show_visual"
+            );
+      } else {
+        console.warn(
+          "[Realtime] Widget config fetch failed:",
+          configResponse.status,
+          companyId
+        );
       }
 
       // Initialize Realtime client
