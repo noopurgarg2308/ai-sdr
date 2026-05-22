@@ -114,7 +114,7 @@ http://localhost:3000/widget/hypersonix
 
 ### WebSocket Connection:
 ```
-wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17
+wss://api.openai.com/v1/realtime?model=gpt-realtime-1.5
 ```
 
 ### Voice Detection:
@@ -202,7 +202,7 @@ turn_detection: {
 
 ### Change Model:
 ```typescript
-model: "gpt-4o-realtime-preview-2024-12-17"
+model: "gpt-realtime-1.5"  // override with OPENAI_REALTIME_MODEL in .env.local
 ```
 
 ## 🐛 Troubleshooting
@@ -383,7 +383,8 @@ AI: [Continues conversation smoothly]
 
 | File | Role |
 |------|------|
-| `src/lib/realtime.ts` | RealtimeClient: WebSocket, session (flat schema for gpt-4o-realtime-preview-2024-12-17), AudioWorklet/ScriptProcessor capture, resample to 24kHz, playback context, transcript dedup, error handling |
+| `src/lib/realtimeModel.ts` | Default GA model (`gpt-realtime-1.5`; set `OPENAI_REALTIME_MODEL` to override) |
+| `src/lib/realtime.ts` | RealtimeClient: WebSocket, GA session schema, AudioWorklet/ScriptProcessor capture, resample to 24kHz, playback context, transcript dedup, error handling |
 | `src/components/WidgetChatRealtime.tsx` | Voice UI: connect, start/stop speaking, messages, visuals, no commit on Stop (server VAD) |
 | `public/realtime-audio-worklet.js` | AudioWorklet for mic capture (resample to 24kHz, PCM16, post to main thread) |
 | `app/api/realtime/session/route.ts` | Returns `apiKey` and `model` for client WebSocket |
@@ -405,6 +406,7 @@ Checks: `OPENAI_API_KEY` set, key valid, Realtime model available. Install `ws` 
 | **“Buffer too small”** | Don’t send commit when user clicks Stop; server VAD already commits. Fixed by not calling `commitAndRespond()` on Stop. |
 | **“Conversation already has an active response in progress”** | Session `turn_detection` should set `interrupt_response: true` (and `create_response: true`) so a new user turn can cancel the in-flight response; see `initializeSession` in `src/lib/realtime.ts`. |
 | **“Realtime Beta API is no longer supported”** | Remove WebSocket subprotocol `openai-beta.realtime-v1`; use GA `session.type: "realtime"` and nested `session.audio.*` in `session.update`. |
+| **“model gpt-4o-realtime-preview-… does not exist”** | Use GA model `gpt-realtime-1.5` (default in `src/lib/realtimeModel.ts`) or set `OPENAI_REALTIME_MODEL=gpt-realtime-2` if your account has it. |
 | **“Unknown parameter: …” on session.update** | Ensure `initializeSession` uses the GA nested schema in `src/lib/realtime.ts`, not the old flat beta fields. |
 | **“Insufficient quota”** | Add payment method or raise limits at https://platform.openai.com/account/billing. |
 | **No response / response failed** | Check browser console for `response.done status:` and error details; UI shows friendly message when status is `failed`. |

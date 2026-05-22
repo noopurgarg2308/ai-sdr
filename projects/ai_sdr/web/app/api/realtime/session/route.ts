@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOpenAIKeyForCompany } from "@/lib/openai";
+import { DEFAULT_REALTIME_MODEL } from "@/lib/realtimeModel";
 
 /**
  * Generate a temporary session token for OpenAI Realtime API
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       apiKey,
-      model: "gpt-4o-realtime-preview-2024-12-17",
+      model: DEFAULT_REALTIME_MODEL,
     });
   } catch (error) {
     console.error("[Realtime Session] Error:", error);

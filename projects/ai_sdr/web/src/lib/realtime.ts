@@ -3,6 +3,8 @@
  * Handles WebSocket connection for real-time speech-to-speech interaction
  */
 
+import { DEFAULT_REALTIME_MODEL } from "@/lib/realtimeModel";
+
 export interface RealtimeMessage {
   type: string;
   [key: string]: any;
@@ -66,7 +68,7 @@ export class RealtimeClient {
 
   constructor(options: RealtimeOptions) {
     this.options = {
-      model: "gpt-4o-realtime-preview-2024-12-17",
+      model: DEFAULT_REALTIME_MODEL,
       voice: "alloy",
       ...options,
     };

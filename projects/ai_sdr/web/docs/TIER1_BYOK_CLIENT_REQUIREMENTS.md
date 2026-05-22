@@ -34,7 +34,7 @@ Your OpenAI account must have:
 | Purpose | Model | Used For |
 |---------|-------|----------|
 | Text chat | `gpt-4-turbo-preview` or `gpt-4o` | Typed conversations |
-| Realtime voice | `gpt-4o-realtime-preview-2024-12-17` | Voice conversations |
+| Realtime voice | `gpt-realtime-1.5` | Voice conversations |
 | Conversation classification | `gpt-4o-mini` | Lead/visitor classification |
 | Knowledge search | `text-embedding-3-small` | RAG embeddings for PDFs and websites |
 | Image OCR | `gpt-4o` | PDFs with images, uploaded images |

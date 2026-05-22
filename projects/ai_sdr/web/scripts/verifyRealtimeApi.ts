@@ -7,7 +7,7 @@
  * Checks:
  * 1. OPENAI_API_KEY is set (from .env.local or env)
  * 2. API key is valid (OpenAI API responds successfully)
- * 3. Realtime model gpt-4o-realtime-preview-2024-12-17 is available to your account
+ * 3. Realtime model (default gpt-realtime-1.5) is available to your account
  * 4. Optional: WebSocket connection to Realtime API (if `ws` is installed)
  */
 
@@ -18,7 +18,8 @@ dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
 const API_BASE = "https://api.openai.com/v1";
-const REALTIME_MODEL = "gpt-4o-realtime-preview-2024-12-17";
+const REALTIME_MODEL =
+  process.env.OPENAI_REALTIME_MODEL?.trim() || "gpt-realtime-1.5";
 
 async function main() {
   console.log("OpenAI Realtime API verification\n");
@@ -55,7 +56,10 @@ async function main() {
     console.log("2. API key: valid (account can list models)");
 
     const hasRealtime = modelIds.some(
-      (id) => id === REALTIME_MODEL || id.startsWith("gpt-4o-realtime") || id === "gpt-4o-realtime-preview"
+      (id) =>
+        id === REALTIME_MODEL ||
+        id.startsWith("gpt-realtime") ||
+        id.startsWith("gpt-4o-realtime")
     );
     if (!hasRealtime) {
       const realtimeRes = await fetch(`${API_BASE}/models/${REALTIME_MODEL}`, { headers });
@@ -64,14 +68,14 @@ async function main() {
       } else {
         console.warn("3. Realtime model: not found in list; checking direct access...");
         if (realtimeRes.status === 404) {
-          console.error("   Model not found. Your account may not have access to gpt-4o-realtime-preview.");
+          console.error(`   Model not found. Your account may not have access to ${REALTIME_MODEL}.`);
           console.error("   Check https://platform.openai.com/docs/models and billing/limits.");
         } else {
           console.error("   Status:", realtimeRes.status, await realtimeRes.text().then((t) => t.slice(0, 200)));
         }
       }
     } else {
-      console.log("3. Realtime model: available (gpt-4o-realtime* in model list)");
+      console.log(`3. Realtime model: available (${REALTIME_MODEL} or gpt-realtime* in model list)`);
     }
 
     console.log("\n4. WebSocket (Realtime) connectivity:");

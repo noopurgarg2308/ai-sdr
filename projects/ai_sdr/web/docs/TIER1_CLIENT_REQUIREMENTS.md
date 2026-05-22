@@ -38,14 +38,14 @@ Your OpenAI account must have:
 | Purpose | Model | When Required |
 |---------|-------|---------------|
 | Text chat | `gpt-4-turbo-preview` or `gpt-4o` | Always |
-| Realtime voice | `gpt-4o-realtime-preview-2024-12-17` | When using voice mode |
+| Realtime voice | `gpt-realtime-1.5` (or `OPENAI_REALTIME_MODEL`) | When using voice mode |
 | Conversation classification | `gpt-4o-mini` | Always |
 | Knowledge search | `text-embedding-3-small` | When using PDFs, websites, or knowledge base |
 | Image OCR | `gpt-4o` | When uploading PDFs with images or standalone images |
 | Video transcription | `whisper-1` | Only when you upload videos |
 | Video frame analysis | `gpt-4o` | Only when you upload videos |
 
-**Summary:** If you only use text chat and voice (no PDFs, no uploaded images, no videos), you need: `gpt-4-turbo-preview` or `gpt-4o`, `gpt-4o-realtime-preview-2024-12-17`, and `gpt-4o-mini`.
+**Summary:** If you only use text chat and voice (no PDFs, no uploaded images, no videos), you need: `gpt-4-turbo-preview` or `gpt-4o`, `gpt-realtime-1.5`, and `gpt-4o-mini`.
 
 If you upload PDFs or websites, add `text-embedding-3-small`. If your PDFs contain images or you upload images, add `gpt-4o`. If you upload videos, add `whisper-1` and `gpt-4o`.
 

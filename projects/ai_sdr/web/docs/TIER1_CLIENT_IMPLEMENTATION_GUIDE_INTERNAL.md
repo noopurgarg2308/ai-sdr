@@ -121,7 +121,7 @@ See [Client Admin Portal](CLIENT_ADMIN_PORTAL.md) for portal setup and routes.
 | Widget shows "API key not configured" | Re-check BYOK settings. Ensure the key is entered and saved. The system does not fall back to the platform key for BYOK clients. |
 | Invalid key errors | Client should verify the key at platform.openai.com, ensure it’s not revoked, and has a payment method. |
 | Model access errors | Client needs the required models enabled. See [Tier 1 Client Requirements](TIER1_CLIENT_REQUIREMENTS.md). |
-| Voice not working | Same key is used for Realtime. Confirm the key has access to `gpt-4o-realtime-preview-2024-12-17`. |
+| Voice not working | Same key is used for Realtime. Confirm the key has access to `gpt-realtime-1.5` (or `OPENAI_REALTIME_MODEL`). |
 
 ---
 
