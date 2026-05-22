@@ -404,7 +404,8 @@ Checks: `OPENAI_API_KEY` set, key valid, Realtime model available. Install `ws` 
 |-------|------------|
 | **“Buffer too small”** | Don’t send commit when user clicks Stop; server VAD already commits. Fixed by not calling `commitAndRespond()` on Stop. |
 | **“Conversation already has an active response in progress”** | Session `turn_detection` should set `interrupt_response: true` (and `create_response: true`) so a new user turn can cancel the in-flight response; see `initializeSession` in `src/lib/realtime.ts`. |
-| **“Unknown parameter: session.type”** | Use flat session schema (no nested `audio.input`); required for `gpt-4o-realtime-preview-2024-12-17`. |
+| **“Realtime Beta API is no longer supported”** | Remove WebSocket subprotocol `openai-beta.realtime-v1`; use GA `session.type: "realtime"` and nested `session.audio.*` in `session.update`. |
+| **“Unknown parameter: …” on session.update** | Ensure `initializeSession` uses the GA nested schema in `src/lib/realtime.ts`, not the old flat beta fields. |
 | **“Insufficient quota”** | Add payment method or raise limits at https://platform.openai.com/account/billing. |
 | **No response / response failed** | Check browser console for `response.done status:` and error details; UI shows friendly message when status is `failed`. |
 | **Same text 3x** | Assistant transcript is shown only from transcript-done event; other handlers no longer add it. |

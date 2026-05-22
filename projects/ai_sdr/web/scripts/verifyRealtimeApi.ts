@@ -81,7 +81,6 @@ async function main() {
       const ws = new WebSocket(url, [
         "realtime",
         `openai-insecure-api-key.${apiKey}`,
-        "openai-beta.realtime-v1",
       ]);
       const done = new Promise<void>((resolve, reject) => {
         const t = setTimeout(() => reject(new Error("timeout")), 10000);

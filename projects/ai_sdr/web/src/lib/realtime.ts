@@ -79,10 +79,10 @@ export class RealtimeClient {
     this.closed = false;
     const url = `wss://api.openai.com/v1/realtime?model=${this.options.model}`;
 
+    // GA Realtime API — do not use openai-beta.realtime-v1 (beta is deprecated)
     this.ws = new WebSocket(url, [
       "realtime",
       `openai-insecure-api-key.${this.options.apiKey}`,
-      "openai-beta.realtime-v1",
     ]);
 
     return new Promise((resolve, reject) => {
@@ -131,26 +131,28 @@ export class RealtimeClient {
   }
 
   private initializeSession() {
-    // gpt-4o-realtime-preview-2024-12-17 expects flat session schema (not nested audio.input)
-    const session: any = {
-      modalities: ["text", "audio"],
-      voice: this.options.voice,
+    // GA /v1/realtime session shape (see https://developers.openai.com/api/docs/guides/realtime)
+    const session: Record<string, unknown> = {
+      type: "realtime",
       instructions: this.options.instructions,
-      input_audio_format: "pcm16",
-      output_audio_format: "pcm16",
-      // User-visible transcript: transcription.completed / .delta + conversation.item.done fallback
-      input_audio_transcription: {
-        model: "gpt-4o-mini-transcribe",
-      },
-      turn_detection: {
-        type: "server_vad",
-        threshold: 0.3,
-        prefix_padding_ms: 400,
-        silence_duration_ms: 600,
-        // Avoid "active response in progress" when VAD fires again while a response is still streaming;
-        // cancel the in-flight response when the user starts speaking (barge-in).
-        create_response: true,
-        interrupt_response: true,
+      output_modalities: ["text", "audio"],
+      audio: {
+        input: {
+          format: { type: "audio/pcm", rate: 24000 },
+          transcription: { model: "gpt-4o-mini-transcribe" },
+          turn_detection: {
+            type: "server_vad",
+            threshold: 0.3,
+            prefix_padding_ms: 400,
+            silence_duration_ms: 600,
+            create_response: true,
+            interrupt_response: true,
+          },
+        },
+        output: {
+          format: { type: "audio/pcm", rate: 24000 },
+          voice: this.options.voice,
+        },
       },
     };
 
