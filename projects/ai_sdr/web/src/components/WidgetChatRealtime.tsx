@@ -141,7 +141,10 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to get session credentials");
+        const errBody = await response.json().catch(() => ({}));
+        throw new Error(
+          (errBody as { error?: string }).error || "Failed to get session credentials"
+        );
       }
 
       const { apiKey, model } = await response.json();
@@ -153,7 +156,11 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
       let tools = toolDefinitions;
 
       if (configResponse.ok) {
-        const { instructions: companyInstructions, useVisuals } = await configResponse.json();
+        const {
+          instructions: companyInstructions,
+          useVisuals,
+          chunkCount,
+        } = await configResponse.json();
         if (companyInstructions) {
           instructions = companyInstructions;
         }
@@ -163,11 +170,18 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
               (t: any) =>
                 t.function.name !== "get_demo_clip" && t.function.name !== "show_visual"
             );
+        if (typeof chunkCount === "number" && chunkCount === 0) {
+          setError(
+            "No knowledge base content found for this company. Upload PDFs or crawl a website in Admin, then try again."
+          );
+        }
       } else {
-        console.warn(
-          "[Realtime] Widget config fetch failed:",
-          configResponse.status,
-          companyId
+        const errBody = await configResponse.json().catch(() => ({}));
+        const detail =
+          (errBody as { error?: string }).error || `HTTP ${configResponse.status}`;
+        console.warn("[Realtime] Widget config fetch failed:", detail, companyId);
+        setError(
+          `Could not load company instructions (${detail}). Answers may use general AI knowledge instead of your site.`
         );
       }
 
@@ -180,6 +194,9 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
         tools,
         onMessage: (message) => {
           console.log("[Realtime] Message:", message.type);
+        },
+        onSessionReady: () => {
+          console.log("[Realtime] Session ready — company instructions and tools are active");
         },
         onError: (err) => {
           console.error("[Realtime] Error:", err);
@@ -302,7 +319,6 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
           return;
         }
         setIsRecording(true);
-        setError(undefined);
       } catch (micErr) {
         console.error("[Realtime] Microphone error:", micErr);
         setError("Microphone access denied or not available");
@@ -329,8 +345,18 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
     <div className="flex flex-col h-full max-w-4xl mx-auto bg-white">
       {/* Error Message */}
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 m-4 rounded flex-shrink-0">
-          <strong>Error:</strong> {error}
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 m-4 rounded flex-shrink-0 flex gap-2 justify-between items-start">
+          <p className="text-sm">
+            <strong>Error:</strong> {error}
+          </p>
+          <button
+            type="button"
+            onClick={() => setError(undefined)}
+            className="text-red-800 hover:text-red-950 text-xs font-semibold shrink-0"
+            aria-label="Dismiss error"
+          >
+            Dismiss
+          </button>
         </div>
       )}
 

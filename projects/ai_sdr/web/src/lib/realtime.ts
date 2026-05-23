@@ -28,6 +28,8 @@ export interface RealtimeOptions {
    * Unlike assistant transcript.done, this runs after audio finishes playing — use for idle timeout / "AI is speaking" UI.
    */
   onAssistantPlaybackFinished?: () => void;
+  /** Fired when session.created / session.updated is received (session.update accepted). */
+  onSessionReady?: () => void;
 }
 
 export class RealtimeClient {
@@ -65,6 +67,8 @@ export class RealtimeClient {
   private inputTranscriptByItemId = new Map<string, string>();
   /** Avoid duplicate user bubbles when both transcription.* and conversation.item.done fire */
   private emittedUserTranscriptItemIds = new Set<string>();
+  /** GA API may emit function calls on arguments.done and/or response.done — run each call_id once */
+  private processedFunctionCallIds = new Set<string>();
 
   constructor(options: RealtimeOptions) {
     this.options = {
@@ -141,7 +145,7 @@ export class RealtimeClient {
       audio: {
         input: {
           format: { type: "audio/pcm", rate: 24000 },
-          transcription: { model: "gpt-4o-mini-transcribe" },
+          transcription: { model: "whisper-1" },
           turn_detection: {
             type: "server_vad",
             threshold: 0.3,
@@ -197,6 +201,7 @@ export class RealtimeClient {
       }
       this.sessionReadyResolve?.();
       this.sessionReadyResolve = null;
+      this.options.onSessionReady?.();
     }
 
     switch (message.type) {
@@ -267,8 +272,34 @@ export class RealtimeClient {
           this.options.onError?.(new Error(friendly));
           break;
         }
+        // GA: function calls often appear on response.output (not only function_call_arguments.done)
+        const outputs = Array.isArray(response?.output) ? response.output : [];
+        for (const item of outputs) {
+          if (item?.type === "function_call" && item.call_id && item.name) {
+            void this.handleFunctionCall({
+              type: "response.function_call_arguments.done",
+              name: item.name,
+              arguments: item.arguments ?? "{}",
+              call_id: item.call_id,
+            });
+          }
+        }
+
         // Covers text-only / tool-only turns (no audio) and backs up playback-drain detection
         this.scheduleAssistantPlaybackFinished();
+        break;
+      }
+
+      case "response.output_item.done": {
+        const item = (message as any).item;
+        if (item?.type === "function_call" && item.call_id && item.name) {
+          void this.handleFunctionCall({
+            type: "response.function_call_arguments.done",
+            name: item.name,
+            arguments: item.arguments ?? "{}",
+            call_id: item.call_id,
+          });
+        }
         break;
       }
 
@@ -375,9 +406,14 @@ export class RealtimeClient {
       (message as any).item?.call_id;
 
     if (!name || !call_id) {
-      console.warn("[Realtime] function_call_arguments.done missing name or call_id", message);
+      console.warn("[Realtime] function_call missing name or call_id", message);
       return;
     }
+
+    if (this.processedFunctionCallIds.has(call_id)) {
+      return;
+    }
+    this.processedFunctionCallIds.add(call_id);
 
     const args = JSON.parse(argsStr || "{}");
 
@@ -734,6 +770,7 @@ export class RealtimeClient {
     this.audioQueue = [];
     this.seenDeltaTypes.clear();
     this.activeAssistantAudioChannel = null;
+    this.processedFunctionCallIds.clear();
     this.inputTranscriptByItemId.clear();
     this.emittedUserTranscriptItemIds.clear();
   }
