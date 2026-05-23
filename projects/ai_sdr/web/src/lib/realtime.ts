@@ -141,7 +141,8 @@ export class RealtimeClient {
     const session: Record<string, unknown> = {
       type: "realtime",
       instructions: this.options.instructions,
-      output_modalities: ["text", "audio"],
+      // GA API: only ["audio"] or ["text"], not both — voice widget uses audio; transcripts come from separate events
+      output_modalities: ["audio"],
       audio: {
         input: {
           format: { type: "audio/pcm", rate: 24000 },

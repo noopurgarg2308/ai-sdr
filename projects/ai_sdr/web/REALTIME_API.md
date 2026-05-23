@@ -405,6 +405,7 @@ Checks: `OPENAI_API_KEY` set, key valid, Realtime model available. Install `ws` 
 |-------|------------|
 | **“Buffer too small”** | Don’t send commit when user clicks Stop; server VAD already commits. Fixed by not calling `commitAndRespond()` on Stop. |
 | **“Conversation already has an active response in progress”** | Session `turn_detection` should set `interrupt_response: true` (and `create_response: true`) so a new user turn can cancel the in-flight response; see `initializeSession` in `src/lib/realtime.ts`. |
+| **“Invalid modalities: ['text', 'audio']”** | GA Realtime allows only `output_modalities: ["audio"]` **or** `["text"]`, not both. Voice widget uses `["audio"]`; transcripts still arrive via `output_audio_transcript` events. |
 | **“Realtime Beta API is no longer supported”** | Remove WebSocket subprotocol `openai-beta.realtime-v1`; use GA `session.type: "realtime"` and nested `session.audio.*` in `session.update`. |
 | **“model gpt-4o-realtime-preview-… does not exist”** | Use GA model `gpt-realtime-1.5` (default in `src/lib/realtimeModel.ts`) or set `OPENAI_REALTIME_MODEL=gpt-realtime-2` if your account has it. |
 | **“Unknown parameter: …” on session.update** | Ensure `initializeSession` uses the GA nested schema in `src/lib/realtime.ts`, not the old flat beta fields. |
