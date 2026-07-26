@@ -5,7 +5,7 @@ import type { ChatMessage } from "@/types/chat";
 import { RealtimeClient } from "@/lib/realtime";
 import { toolDefinitions } from "@/lib/toolDefinitions";
 
-const IDLE_TIMEOUT_MS = 15 * 1000; // 15 seconds of no activity (user speech, AI response) = walked away
+const IDLE_TIMEOUT_MS = 45 * 1000; // 45s after assistant finishes (or user spoke) before session ends
 
 interface WidgetChatProps {
   companyId: string;
@@ -23,6 +23,8 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
   const [isConnected, setIsConnected] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  /** User finished a turn; hide "listening" until assistant audio finishes (matches awaitingAssistantRef for UI) */
+  const [isAwaitingAssistant, setIsAwaitingAssistant] = useState(false);
   const [error, setError] = useState<string>();
   const [demoClipUrl, setDemoClipUrl] = useState<string>();
   const [meetingLink, setMeetingLink] = useState<string>();
@@ -82,6 +84,7 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
     setIsConnected(false);
     setIsRecording(false);
     setIsSpeaking(false);
+    setIsAwaitingAssistant(false);
     awaitingAssistantRef.current = false;
     if (reason === "idle") {
       setError("Session ended due to inactivity. Connect again to continue.");
@@ -90,7 +93,7 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
     }
   }, [companyId]);
 
-  // Idle timeout: 15s after lastActivityRef bump (user spoke, or assistant audio fully finished locally).
+  // Idle timeout: 45s after lastActivityRef bump (user spoke, or assistant audio fully finished locally).
   // Block while isSpeakingRef (TTS playing) or awaitingAssistantRef (user spoke, model not yet audible).
   useEffect(() => {
     if (!isConnected) return;
@@ -201,18 +204,21 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
         onError: (err) => {
           console.error("[Realtime] Error:", err);
           awaitingAssistantRef.current = false;
+          setIsAwaitingAssistant(false);
           setError(err.message);
           setIsRecording(false);
           setIsSpeaking(false);
         },
         onAudioDelta: () => {
           awaitingAssistantRef.current = false;
+          setIsAwaitingAssistant(false);
           setIsSpeaking(true);
         },
         onAssistantPlaybackFinished: () => {
           awaitingAssistantRef.current = false;
+          setIsAwaitingAssistant(false);
           setIsSpeaking(false);
-          lastActivityRef.current = Date.now(); // 15s idle starts after local audio actually finishes
+          lastActivityRef.current = Date.now(); // idle countdown starts after local audio actually finishes
         },
         onTranscript: (text, role) => {
           const trimmed = text?.trim() ?? "";
@@ -221,6 +227,7 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
           if (role === "user") {
             lastActivityRef.current = Date.now();
             awaitingAssistantRef.current = true;
+            setIsAwaitingAssistant(true);
           }
 
           const newMessage: ChatMessage = {
@@ -381,12 +388,21 @@ export default function WidgetChatRealtime({ companyId }: WidgetChatProps) {
           </div>
         ))}
         
-        {/* Status indicators */}
-        {isRecording && (
+        {/* Status indicators — only prompt to speak when mic is open and assistant is not replying */}
+        {isRecording && !isSpeaking && !isAwaitingAssistant && (
           <div className="flex justify-center flex-col items-center gap-1">
             <div className="bg-green-100 text-green-700 rounded-lg px-4 py-2 text-sm">
               <span className="inline-block w-2 h-2 bg-green-600 rounded-full mr-2 animate-pulse"></span>
               Listening... Just speak naturally. I&apos;ll respond when you pause.
+            </div>
+          </div>
+        )}
+
+        {isAwaitingAssistant && !isSpeaking && (
+          <div className="flex justify-center">
+            <div className="bg-amber-50 text-amber-800 rounded-lg px-4 py-2 text-sm">
+              <span className="inline-block w-2 h-2 bg-amber-500 rounded-full mr-2 animate-pulse"></span>
+              Preparing a response...
             </div>
           </div>
         )}

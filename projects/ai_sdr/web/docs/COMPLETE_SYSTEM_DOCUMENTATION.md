@@ -477,7 +477,7 @@ Every conversation (text chat and Realtime voice) is automatically logged to `da
 ### Idle Timeout
 
 - **Text chat**: 1 minute of no user input
-- **Realtime voice**: 15 seconds of no activity (user speech, AI response). User can also say "end conversation" or "goodbye" to end via the `end_conversation` tool.
+- **Realtime voice**: 45 seconds of no activity (user speech, AI response). User can also say "end conversation" or "goodbye" to end via the `end_conversation` tool.
 
 A message is shown, the conversation is logged, and the session resets.
 

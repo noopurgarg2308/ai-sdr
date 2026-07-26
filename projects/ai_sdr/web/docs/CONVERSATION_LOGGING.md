@@ -60,7 +60,7 @@ All contact fields (`name`, `email`, `company`, `role`, `icp_fit`, `use_cases`) 
 ### Idle Timeout (Session Termination)
 
 - **Text**: No user message for 1 min → show "Session ended due to inactivity" → log conversation → reset session
-- **Realtime**: No activity for 15 seconds (user speech, AI response) → show "Session ended due to inactivity" → disconnect → log conversation. User can also say "end conversation" or "goodbye" to end via the `end_conversation` tool (no button press needed).
+- **Realtime**: No activity for 45 seconds (user speech, AI response) → show "Session ended due to inactivity" → disconnect → log conversation. User can also say "end conversation" or "goodbye" to end via the `end_conversation` tool (no button press needed).
 
 Activity resets the timer:
 

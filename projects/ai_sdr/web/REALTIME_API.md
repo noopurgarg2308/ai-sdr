@@ -98,7 +98,7 @@ http://localhost:3000/widget/hypersonix
 - **Red "End Conversation" Button** - Disconnect
 
 ### Idle Timeout & Session Lifecycle:
-- **15 seconds** of no activity (user speech, AI response) → session ends automatically
+- **45 seconds** of no activity (user speech, AI response) → session ends automatically
 - **Message shown**: "Session ended due to inactivity. Connect again to continue."
 - **Conversation logged** before disconnect
 - Activity resets the timer: user speech (via onUserAudio + transcript), AI audio, or assistant transcript

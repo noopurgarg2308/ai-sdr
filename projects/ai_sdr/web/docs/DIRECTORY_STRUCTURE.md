@@ -115,7 +115,7 @@
 | `WidgetChat.tsx` | Base chat widget (reusable) |
 | `EmbeddableChatWidget.tsx` | Floating avatar (large), centered modal, company name in header, light blue theme |
 | `WidgetChatText.tsx` | Text chat with visuals, demo, meeting; idle timeout |
-| `WidgetChatRealtime.tsx` | Realtime voice chat; avatar + compact Start/Stop; no header; 15s idle timeout; log on disconnect |
+| `WidgetChatRealtime.tsx` | Realtime voice chat; avatar + compact Start/Stop; no header; 45s idle timeout; log on disconnect |
 | `WidgetChatTavus.tsx` | Tavus video avatar chat |
 | `WidgetChatUnified.tsx` | Unified widget (mode switcher); Realtime Voice default; Text only when useTextChat; Tavus when useTavusVideo |
 
