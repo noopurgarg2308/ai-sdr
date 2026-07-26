@@ -69,6 +69,8 @@ export class RealtimeClient {
   private emittedUserTranscriptItemIds = new Set<string>();
   /** GA API may emit function calls on arguments.done and/or response.done — run each call_id once */
   private processedFunctionCallIds = new Set<string>();
+  /** True while mic uploads are suppressed during local assistant playback (laptop speaker bleed fix) */
+  private micInputGated = false;
 
   constructor(options: RealtimeOptions) {
     this.options = {
@@ -639,10 +641,27 @@ export class RealtimeClient {
     return result;
   }
 
+  /** Assistant audio is queued or playing locally — do not upload mic (avoids speaker bleed → false user transcript). */
+  private isAssistantPlaybackActive(): boolean {
+    return this.isPlaying || this.audioQueue.length > 0;
+  }
+
   private sendAudio(audioData: ArrayBuffer) {
     if (this.closed) return;
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
     if (audioData.byteLength === 0) return;
+
+    if (this.isAssistantPlaybackActive()) {
+      if (!this.micInputGated) {
+        this.micInputGated = true;
+        console.log("[Realtime] Mic gating on — pausing upload while assistant audio plays");
+      }
+      return;
+    }
+    if (this.micInputGated) {
+      this.micInputGated = false;
+      console.log("[Realtime] Mic gating off — resuming upload");
+    }
 
     if (this.options.onUserAudio && this.sendChunkCount % 20 === 0) {
       this.options.onUserAudio();
@@ -774,6 +793,7 @@ export class RealtimeClient {
     this.processedFunctionCallIds.clear();
     this.inputTranscriptByItemId.clear();
     this.emittedUserTranscriptItemIds.clear();
+    this.micInputGated = false;
   }
 
   private tryEmitUserTranscript(text: string, itemId?: string | null) {

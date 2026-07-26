@@ -413,6 +413,7 @@ Checks: `OPENAI_API_KEY` set, key valid, Realtime model available. Install `ws` 
 | **No response / response failed** | Check browser console for `response.done status:` and error details; UI shows friendly message when status is `failed`. |
 | **Same text 3x** | Assistant transcript is shown only from transcript-done event; other handlers no longer add it. |
 | **Echo / double voice** | Dedupe `response.output_audio.delta` vs `response.audio.delta` per response; mic graph avoids feeding capture to speakers (ScriptProcessor: zero gain to destination). See [docs/VOICE_RAG_RUNTIME.md](docs/VOICE_RAG_RUNTIME.md). |
+| **Phantom user text (e.g. “bye-bye”) while AI talks on laptop speakers** | Mic upload is **gated** while assistant audio is queued/playing locally so speaker bleed is not transcribed as user speech. Use headphones for barge-in during AI speech; with gating, speak after the AI finishes. |
 | **Vague voice answers (“couldn’t get pricing”)** | Ensure crawl/RAG has data; check server logs for **`search_knowledge: zero results`**. Tool handler must always return output—server-side `search_knowledge` uses resolved `companyId`, safe metadata parsing, snippet caps, and Realtime client sends error-shaped `function_call_output` on any tool throw. |
 
 ### Voice Detection (Current)

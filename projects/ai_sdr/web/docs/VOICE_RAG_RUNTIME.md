@@ -10,6 +10,7 @@ This document records **voice (OpenAI Realtime)** and **`search_knowledge`** beh
 |------|--------|-----------------|
 | **Voice playback** | Double audio / echo | Deduplicate assistant audio: handle only one of `response.output_audio.delta` **or** `response.audio.delta` per response; reset when the response ends (`response.done`) or on disconnect/error. |
 | **Microphone** | Echo / feedback | Prefer **not** routing capture straight to speakers; ScriptProcessor fallback uses **gain 0** into the destination graph; `autoGainControl` enabled where supported. |
+| **Mic + laptop speakers** | Phantom user transcript while AI speaks | **Gate** `input_audio_buffer.append` while assistant PCM is queued/playing locally so bleed is not ASR’d as user speech. Headphones avoid the issue; gating fixes open speakers. Barge-in by voice during AI playback is disabled until playback ends. |
 | **Voice + KB** | Vague answers (“couldn’t fetch pricing”) | If `search_knowledge` **threw** after hybrid search (e.g. bad `JSON.parse` on asset metadata), Realtime **never** received `function_call_output`, so the model invented failures. **Always** send tool output, including on error. |
 | **Tools** | Slug vs DB id, fragile metadata | Resolve **`company.id`** via `resolveCompanyId()` for hybrid search and Prisma `mediaAsset` queries; **safe** metadata parsing for linked visuals; **truncate** snippet text (~6000 chars/hit) to keep Realtime payloads bounded. |
 | **Observability** | Hard to debug empty RAG | **`console.warn`** when hybrid search returns **zero** hits—grep server logs (e.g. Railway) for `search_knowledge: zero results`. |
@@ -31,6 +32,7 @@ This document records **voice (OpenAI Realtime)** and **`search_knowledge`** beh
 
 - **Duplicate deltas:** Some Realtime model/session shapes emit both `response.output_audio.delta` and `response.audio.delta` for the same audio. The client tracks a flag per response so only **one** stream is decoded per turn.
 - **Mic graph:** Capture is resampled to 24 kHz PCM16 for the API; local monitoring path must not feed assistant audio back into the mic chain in a way users hear as echo.
+- **Mic gating:** While `isPlaying` or the local playback queue is non-empty, mic chunks are **not** sent to the Realtime API (console: `Mic gating on/off`). Prevents laptop speakers from being transcribed as user turns.
 
 See also **`REALTIME_API.md`** for session shape, VAD, and UI flow.
 
